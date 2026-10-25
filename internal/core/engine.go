@@ -49,6 +49,10 @@ type Engine struct {
 	// apt/dpkg, pacman, dnf etc. hold a global lock and fail when run concurrently.
 	packageMu sync.Mutex
 
+	// OnLayerStart, if set, is called before each layer of RunLayers. The
+	// returned func (may be nil) is called with that layer's result.
+	OnLayerStart func(index, total int, layer []ConfigItem) (done func(err error))
+
 	// tx is the transaction shared by all layers run on this engine.
 	tx *types.Transaction
 }
@@ -127,7 +131,15 @@ func (e *Engine) RunLayers(layers [][]ConfigItem, createFn ResourceCreator) erro
 	var lastErr error
 	for i, layer := range layers {
 		e.Context.Logger.Debug(fmt.Sprintf("Executing Layer %d (%d resources)", i+1, len(layer)))
-		if err := e.RunParallel(layer, createFn); err != nil {
+		var done func(error)
+		if e.OnLayerStart != nil {
+			done = e.OnLayerStart(i, len(layers), layer)
+		}
+		err := e.RunParallel(layer, createFn)
+		if done != nil {
+			done(err)
+		}
+		if err != nil {
 			if !e.Context.DryRun {
 				return err
 			}

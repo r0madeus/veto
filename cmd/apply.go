@@ -257,22 +257,20 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 	eng := core.NewEngine(ctx, stateMgr)
 	finalError := error(nil)
 
-	// Execute Layers
-	for i, layer := range layers {
-		// Layer Header
+	// Execute Layers (one transaction; a failure rolls back every layer)
+	eng.OnLayerStart = func(i, total int, layer []core.ConfigItem) func(error) {
 		pterm.DefaultSection.Printf("Phase %d: Processing %d resources", i+1, len(layer))
-
-		// Spinner for execution (Simple main spinner)
 		spinnerExec, _ := pterm.DefaultSpinner.Start("Executing layer...")
-
-		if err := eng.RunParallel(layer, createFn); err != nil {
-			spinnerExec.Fail(fmt.Sprintf("Layer %d failed", i+1))
-			pterm.Error.Printf("Layer %d completed with errors: %v\n", i+1, err)
-			finalError = err // Keep track of error
-			break            // Stop processing layers on failure
+		return func(err error) {
+			if err != nil {
+				spinnerExec.Fail(fmt.Sprintf("Layer %d failed", i+1))
+				pterm.Error.Printf("Layer %d completed with errors: %v\n", i+1, err)
+				return
+			}
+			spinnerExec.Success(fmt.Sprintf("Layer %d complete", i+1))
 		}
-		spinnerExec.Success(fmt.Sprintf("Layer %d complete", i+1))
 	}
+	finalError = eng.RunLayers(layers, createFn)
 
 	// Post Snapshot Logic
 	if preSnapID != "" && snapMgr != nil {

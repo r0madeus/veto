@@ -392,3 +392,32 @@ func TestEngine_Run_DryRunReportsAllLayerErrors(t *testing.T) {
 		t.Error("dry-run must not roll back")
 	}
 }
+
+func TestEngine_RunLayers_ReportsEachLayer(t *testing.T) {
+	engine := core.NewEngine(core.NewSystemContext(false, nil), nil)
+	a := &MockResource{Name: "a", ApplyResult: core.SuccessChange("ok")}
+	b := &MockResource{Name: "b", ApplyErr: errors.New("boom")}
+	c := &MockResource{Name: "c", ApplyResult: core.SuccessChange("ok")}
+
+	var started []int
+	var results []error
+	engine.OnLayerStart = func(i, total int, layer []core.ConfigItem) func(error) {
+		started = append(started, i)
+		return func(err error) { results = append(results, err) }
+	}
+
+	layers := [][]core.ConfigItem{{{Name: "a"}}, {{Name: "b"}}, {{Name: "c"}}}
+	if err := engine.RunLayers(layers, creatorFor(a, b, c)); err == nil {
+		t.Fatal("expected error")
+	}
+
+	if len(started) != 2 || started[0] != 0 || started[1] != 1 {
+		t.Errorf("started layers = %v, want [0 1] (layer 2 must not start after a failure)", started)
+	}
+	if len(results) != 2 || results[0] != nil || results[1] == nil {
+		t.Errorf("results = %v, want [nil, error]", results)
+	}
+	if !a.RevertCalled || c.ApplyCalled {
+		t.Error("layer 0 must be rolled back and layer 2 never applied")
+	}
+}
