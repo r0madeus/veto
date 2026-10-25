@@ -45,6 +45,21 @@ type Engine struct {
 	Context        *SystemContext
 	StateUpdater   StateUpdater // Optional: State manager
 	AppliedHistory []Resource
+
+	// packageMu serializes package manager operations within a parallel layer:
+	// apt/dpkg, pacman, dnf etc. hold a global lock and fail when run concurrently.
+	packageMu sync.Mutex
+}
+
+// packageManagerTypes are resource types that drive a system package manager.
+var packageManagerTypes = map[string]bool{
+	"package": true, "pkg": true, "bundle": true,
+	"pacman": true, "yay": true, "paru": true, "apt": true, "dnf": true,
+	"yum": true, "zypper": true, "apk": true, "brew": true, "snap": true, "flatpak": true,
+}
+
+func isPackageManagerType(resType string) bool {
+	return packageManagerTypes[resType]
 }
 
 // NewEngine creates a new engine instance.
@@ -345,6 +360,11 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 				e.Context.Logger.Debug(fmt.Sprintf("[%s] Pre-Hook executed", it.Name))
 			}
 
+			// Package managers must not run concurrently (lock contention).
+			if isPackageManagerType(it.Type) {
+				e.packageMu.Lock()
+			}
+
 			// 2. Capture Diff (if supported) BEFORE Apply
 			var pendingDiff string
 			if differ, ok := res.(Differ); ok {
@@ -355,6 +375,10 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 
 			// 2. Apply resource
 			result, err := res.Apply(e.Context)
+
+			if isPackageManagerType(it.Type) {
+				e.packageMu.Unlock()
+			}
 
 			// 2.1 POST-HOOK (Always runs if Apply attempted, unless Pre failed)
 			if it.Hooks.Post != "" {

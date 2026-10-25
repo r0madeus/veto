@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/types"
@@ -67,12 +70,15 @@ func (m *MockResource) RevertAction(action string, ctx *core.SystemContext) erro
 
 // MockStateUpdater implements StateUpdater
 type MockStateUpdater struct {
+	mu      sync.Mutex
 	Updates []struct {
 		Type, Name, TargetState, Status string
 	}
 }
 
 func (m *MockStateUpdater) UpdateResource(resType, name, targetState, status string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Updates = append(m.Updates, struct {
 		Type, Name, TargetState, Status string
 	}{resType, name, targetState, status})
@@ -235,4 +241,47 @@ func TestEngine_RunParallel(t *testing.T) {
 			}
 		}
 	})
+}
+
+// slowResource records how many Apply calls overlap.
+type slowResource struct {
+	MockResource
+	active, maxActive *int32
+}
+
+func (s *slowResource) Apply(ctx *core.SystemContext) (core.Result, error) {
+	n := atomic.AddInt32(s.active, 1)
+	for {
+		m := atomic.LoadInt32(s.maxActive)
+		if n <= m || atomic.CompareAndSwapInt32(s.maxActive, m, n) {
+			break
+		}
+	}
+	time.Sleep(30 * time.Millisecond)
+	atomic.AddInt32(s.active, -1)
+	return core.SuccessChange("ok"), nil
+}
+
+func TestEngine_RunParallel_SerializesPackageManagers(t *testing.T) {
+	run := func(resType string) int32 {
+		var active, maxActive int32
+		engine := core.NewEngine(core.NewSystemContext(true, nil), nil)
+		createFn := func(typ, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
+			return &slowResource{MockResource: MockResource{Name: n, Type: typ}, active: &active, maxActive: &maxActive}, nil
+		}
+		items := []core.ConfigItem{
+			{Name: "a", Type: resType}, {Name: "b", Type: resType}, {Name: "c", Type: resType},
+		}
+		if err := engine.RunParallel(items, createFn); err != nil {
+			t.Fatalf("RunParallel failed: %v", err)
+		}
+		return maxActive
+	}
+
+	if got := run("apt"); got != 1 {
+		t.Errorf("package resources overlapped: max concurrency %d, want 1", got)
+	}
+	if got := run("file"); got < 2 {
+		t.Errorf("non-package resources should still run in parallel, max concurrency %d", got)
+	}
 }
