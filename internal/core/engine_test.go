@@ -285,3 +285,110 @@ func TestEngine_RunParallel_SerializesPackageManagers(t *testing.T) {
 		t.Errorf("non-package resources should still run in parallel, max concurrency %d", got)
 	}
 }
+
+type txRecorder struct {
+	MockStateUpdater
+	txs []types.Transaction
+}
+
+func (r *txRecorder) AddTransaction(tx types.Transaction) error {
+	r.txs = append(r.txs, tx)
+	return nil
+}
+
+func creatorFor(res ...*MockResource) core.ResourceCreator {
+	byName := map[string]*MockResource{}
+	for _, r := range res {
+		byName[r.Name] = r
+	}
+	return func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
+		if r, ok := byName[n]; ok {
+			return r, nil
+		}
+		return nil, errors.New("unknown " + n)
+	}
+}
+
+func TestEngine_LayersShareOneTransaction(t *testing.T) {
+	rec := &txRecorder{}
+	engine := core.NewEngine(core.NewSystemContext(false, nil), rec)
+
+	a := &MockResource{Name: "a", ApplyResult: core.SuccessChange("ok")}
+	b := &MockResource{Name: "b", ApplyResult: core.SuccessChange("ok")}
+	c := &MockResource{Name: "c", ApplyErr: errors.New("boom")}
+	create := creatorFor(a, b, c)
+
+	if err := engine.RunParallel([]core.ConfigItem{{Name: "a"}}, create); err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.RunParallel([]core.ConfigItem{{Name: "b"}, {Name: "c"}}, create); err == nil {
+		t.Fatal("expected failure in second layer")
+	}
+
+	if !a.RevertCalled || !b.RevertCalled {
+		t.Error("both layers must be rolled back")
+	}
+	if len(rec.txs) != 2 {
+		t.Fatalf("expected 2 saves of the same transaction, got %d", len(rec.txs))
+	}
+	if rec.txs[0].ID != rec.txs[1].ID {
+		t.Error("layers must share one transaction ID")
+	}
+	if rec.txs[0].Status != "success" || rec.txs[1].Status != "reverted" {
+		t.Errorf("statuses = %q, %q; want success, reverted", rec.txs[0].Status, rec.txs[1].Status)
+	}
+	if len(rec.txs[1].Changes) != 2 {
+		t.Errorf("final transaction should list both applied changes, got %d", len(rec.txs[1].Changes))
+	}
+}
+
+func TestEngine_Run_NoDependencies_KeepsOrderAndRollsBack(t *testing.T) {
+	rec := &txRecorder{}
+	engine := core.NewEngine(core.NewSystemContext(false, nil), rec)
+
+	var order []string
+	var mu sync.Mutex
+	a := &MockResource{Name: "a", ApplyResult: core.SuccessChange("ok")}
+	b := &MockResource{Name: "b", ApplyErr: errors.New("boom")}
+	c := &MockResource{Name: "c", ApplyResult: core.SuccessChange("ok")}
+	base := creatorFor(a, b, c)
+	create := func(typ, n string, p map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
+		mu.Lock()
+		order = append(order, n)
+		mu.Unlock()
+		return base(typ, n, p, ctx)
+	}
+
+	err := engine.Run([]core.ConfigItem{{Name: "a"}, {Name: "b"}, {Name: "c"}}, create)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Join(order, ",") != "a,b" {
+		t.Errorf("execution order = %v, want a,b (c must not run after failure)", order)
+	}
+	if !a.RevertCalled {
+		t.Error("a must be rolled back after b failed")
+	}
+	if c.ApplyCalled {
+		t.Error("c must not be applied")
+	}
+	if len(rec.txs) == 0 || rec.txs[len(rec.txs)-1].Status != "reverted" {
+		t.Error("transaction must end as reverted")
+	}
+}
+
+func TestEngine_Run_DryRunReportsAllLayerErrors(t *testing.T) {
+	engine := core.NewEngine(core.NewSystemContext(true, nil), nil)
+	a := &MockResource{Name: "a", ApplyErr: errors.New("x")}
+	b := &MockResource{Name: "b", ApplyResult: core.SuccessNoChange("ok")}
+	err := engine.Run([]core.ConfigItem{{Name: "a"}, {Name: "b"}}, creatorFor(a, b))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !b.ApplyCalled {
+		t.Error("dry-run should keep checking later layers")
+	}
+	if a.RevertCalled {
+		t.Error("dry-run must not roll back")
+	}
+}

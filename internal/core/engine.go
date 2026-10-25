@@ -49,6 +49,9 @@ type Engine struct {
 	// packageMu serializes package manager operations within a parallel layer:
 	// apt/dpkg, pacman, dnf etc. hold a global lock and fail when run concurrently.
 	packageMu sync.Mutex
+
+	// tx is the transaction shared by all layers run on this engine.
+	tx *types.Transaction
 }
 
 // packageManagerTypes are resource types that drive a system package manager.
@@ -75,9 +78,20 @@ func NewEngine(ctx *SystemContext, updater StateUpdater) *Engine {
 // ResourceCreator fonksiyon tipi
 type ResourceCreator func(resType, name string, params map[string]interface{}, ctx *SystemContext) (Resource, error)
 
-// Run processes the given configuration list.
+// Run processes the given configuration list. Items without dependencies keep
+// their file order (one item per layer); otherwise the dependency graph decides
+// the layers. All layers share a single transaction.
 func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
-	// Check if any item has dependencies
+	layers, err := e.buildLayers(items)
+	if err != nil {
+		return err
+	}
+	e.tx = nil // a Run is one fresh transaction
+	return e.RunLayers(layers, createFn)
+}
+
+// buildLayers splits items into execution layers.
+func (e *Engine) buildLayers(items []ConfigItem) ([][]ConfigItem, error) {
 	hasDeps := false
 	for _, item := range items {
 		if len(item.DependsOn) > 0 {
@@ -86,193 +100,126 @@ func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 		}
 	}
 
-	// Legacy / Sequential Mode if no dependencies
-	// This preserves exact behavior for existing configs that rely on file order
+	// No dependencies: preserve exact file order.
 	if !hasDeps {
-		return e.runSequential(items, createFn)
+		layers := make([][]ConfigItem, len(items))
+		for i, item := range items {
+			layers[i] = []ConfigItem{item}
+		}
+		return layers, nil
 	}
 
-	// DAG Mode
 	graph := NewGraph()
 	if err := graph.BuildGraph(items); err != nil {
-		return fmt.Errorf("failed to build dependency graph: %w", err)
+		return nil, fmt.Errorf("failed to build dependency graph: %w", err)
 	}
-
 	layers, err := graph.TopologicalSort()
 	if err != nil {
-		return fmt.Errorf("dependency error: %w", err)
+		return nil, fmt.Errorf("dependency error: %w", err)
 	}
-
 	e.Context.Logger.Info(fmt.Sprintf("Executing %d layers of resources", len(layers)))
+	return layers, nil
+}
 
+// RunLayers executes the layers in order. The first failing layer is rolled
+// back together with everything applied before it and stops the run. In
+// dry-run nothing is applied, so the remaining layers are still checked.
+func (e *Engine) RunLayers(layers [][]ConfigItem, createFn ResourceCreator) error {
+	var lastErr error
 	for i, layer := range layers {
 		e.Context.Logger.Debug(fmt.Sprintf("Executing Layer %d (%d resources)", i+1, len(layer)))
 		if err := e.RunParallel(layer, createFn); err != nil {
-			return err
+			if !e.Context.DryRun {
+				return err
+			}
+			lastErr = err
 		}
 	}
-
-	return nil
+	return lastErr
 }
 
-// runSequential is the legacy execution mode (moved from original Run)
-func (e *Engine) runSequential(items []ConfigItem, createFn ResourceCreator) error {
-	errCount := 0
-
-	// Transaction recording
-	transaction := types.Transaction{
-		ID:        uuid.New().String(),
-		Timestamp: time.Now(),
-		Status:    "success",
-		Changes:   []types.TransactionChange{},
+// currentTransaction returns the transaction shared by all layers run on this
+// engine, creating it on first use.
+func (e *Engine) currentTransaction() *types.Transaction {
+	if e.tx == nil {
+		e.tx = &types.Transaction{
+			ID:        uuid.New().String(),
+			Timestamp: time.Now(),
+			Status:    "success",
+			Changes:   []types.TransactionChange{},
+		}
+		e.Context.TxID = e.tx.ID
+		e.Context.BackupManager = state.NewBackupManager("") // Use default path
 	}
+	return e.tx
+}
 
-	// Initialize Backup Manager for this transaction
-	e.Context.TxID = transaction.ID
-	e.Context.BackupManager = state.NewBackupManager("") // Use default path
+// itemOutcome is the result of processing one config item.
+type itemOutcome struct {
+	res    Resource
+	change *types.TransactionChange // set only when the resource changed the system
+	err    error
+}
 
-	for _, item := range items {
-		// Params preparation
-		if item.Params == nil {
-			item.Params = make(map[string]interface{})
+// RunParallel processes the items of one layer in parallel. Layers run on the
+// same engine share one transaction; a failure rolls back this layer and all
+// previously applied layers.
+func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error {
+	tx := e.currentTransaction()
+
+	outcomes := make([]itemOutcome, len(layer))
+	var wg sync.WaitGroup
+	for i := range layer {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			outcomes[i] = e.processItem(layer[i], createFn)
+		}(i)
+	}
+	wg.Wait()
+
+	var applied []Resource // successful changes of this layer, in config order
+	errCount := 0
+	for _, o := range outcomes {
+		if o.change != nil {
+			tx.Changes = append(tx.Changes, *o.change)
 		}
-		item.Params["state"] = item.State
-		item.Params["prune"] = item.Prune
-
-		// 0. Check Condition (When)
-		if item.When != "" {
-			shouldRun, err := EvaluateCondition(item.When, e.Context)
-			if err != nil {
-				e.Context.Logger.Error(fmt.Sprintf("[%s] Condition Error: %v", item.Name, err))
-				errCount++
-				continue
-			}
-			if !shouldRun {
-				e.Context.Logger.Debug(fmt.Sprintf("[%s] Skipped (Condition not met)", item.Name))
-				continue
-			}
-		}
-
-		// 0.5 Render Templates in Params
-		if err := renderParams(item.Params, e.Context); err != nil {
-			e.Context.Logger.Error(fmt.Sprintf("[%s] Template Error: %v", item.Name, err))
+		switch {
+		case o.err != nil:
 			errCount++
-			continue
-		}
-
-		// 1. Create resource
-		res, err := createFn(item.Type, item.Name, item.Params, e.Context)
-		if err != nil {
-			Failure(err, "Skipping invalid resource definition: "+item.Name)
-			errCount++
-			continue
-		}
-
-		// 1.5 Validate resource configuration
-		if err := res.Validate(e.Context); err != nil {
-			e.Context.Logger.Error(fmt.Sprintf("[%s] Validation Failed: %v", item.Name, err))
-			errCount++
-			continue
-		}
-
-		// 1.9 PRE-HOOK
-		if item.Hooks.Pre != "" {
-			if err := executeHook(e.Context, item.Hooks.Pre); err != nil {
-				e.Context.Logger.Error(fmt.Sprintf("[%s] Pre-Hook Failed: %v", item.Name, err))
-				errCount++
-				continue
-			}
-		}
-
-		// 2. Capture Diff (if supported) BEFORE Apply
-		var pendingDiff string
-		if differ, ok := res.(Differ); ok {
-			// We ignore error here as Diff might fail if resource is invalid, but we proceed to Apply which handles it
-			if d, err := differ.Diff(e.Context); err == nil {
-				pendingDiff = d
-			}
-		}
-
-		// 2. Apply resource
-		result, err := res.Apply(e.Context)
-
-		// 2.1 POST-HOOK
-		if item.Hooks.Post != "" {
-			_ = executeHook(e.Context, item.Hooks.Post)
-		}
-
-		status := "success"
-		if err != nil {
-			status = "failed"
-			errCount++
-			e.Context.Logger.Error(fmt.Sprintf("[%s] Failed: %v", item.Name, err))
-
-			// 2.2 ON-FAIL HOOK
-			if item.Hooks.OnFail != "" {
-				_ = executeHook(e.Context, item.Hooks.OnFail)
-			}
-		} else if result.Changed {
-			e.Context.Logger.Info(fmt.Sprintf("[%s] %s", item.Name, result.Message))
-
-			// 2.3 ON-CHANGE HOOK
-			if item.Hooks.OnChange != "" {
-				_ = executeHook(e.Context, item.Hooks.OnChange)
-			}
-
-			// Record change for History
-			change := types.TransactionChange{
-				Type:   item.Type,
-				Name:   item.Name,
-				Action: "applied",
-				Diff:   pendingDiff,
-			}
-
-			// Try to get target path (specifically for file)
-			if p, ok := item.Params["path"].(string); ok {
-				change.Target = p
-			} else {
-				change.Target = item.Name // Fallback
-			}
-
-			// Use local interface to avoid import cycle
-			type Backupable interface {
-				GetBackupPath() string
-			}
-
-			if b, ok := res.(Backupable); ok {
-				change.BackupPath = b.GetBackupPath()
-			}
-
-			transaction.Changes = append(transaction.Changes, change)
-			// Add to history for rollback
-			e.AppliedHistory = append(e.AppliedHistory, res)
-
-		} else {
-			msg := "OK"
-			if result.Message != "" {
-				msg = result.Message
-			}
-			e.Context.Logger.Debug(fmt.Sprintf("[%s] %s: %s", item.Type, item.Name, msg))
-		}
-
-		// 3. Save State (If not DryRun)
-		if !e.Context.DryRun && e.StateUpdater != nil {
-			// Save as "failed" even if it failed, to track the attempt
-			saveErr := e.StateUpdater.UpdateResource(item.Type, item.Name, item.State, status)
-			if saveErr != nil {
-				fmt.Printf("⚠️ Warning: Failed to save state for %s: %v\n", item.Name, saveErr)
-			}
+		case o.change != nil && !e.Context.DryRun:
+			applied = append(applied, o.res)
 		}
 	}
 
 	if errCount > 0 {
-		transaction.Status = "failed"
+		tx.Status = "failed"
+		if !e.Context.DryRun {
+			pterm.Println()
+			pterm.Error.Println("Error occurred. Initiating Rollback...")
+
+			// 1. Revert what succeeded in the current layer
+			pterm.Warning.Printf("Rolling back current layer (%d resources)...\n", len(applied))
+			e.rollback(applied)
+
+			// 2. Revert everything applied in previous layers
+			pterm.Warning.Printf("Rolling back previous layers (%d resources)...\n", len(e.AppliedHistory))
+			e.rollback(e.AppliedHistory)
+			e.AppliedHistory = nil
+
+			tx.Status = "reverted"
+		}
+	} else {
+		// Rollback is LIFO over this list, so it grows in execution order.
+		e.AppliedHistory = append(e.AppliedHistory, applied...)
 	}
 
-	// Save History
+	// Persist (upsert by ID: later layers update the same history entry)
 	if !e.Context.DryRun && e.StateUpdater != nil {
-		if err := e.StateUpdater.AddTransaction(transaction); err != nil {
-			fmt.Printf("⚠️ Warning: Failed to save history: %v\n", err)
+		snapshot := *tx
+		snapshot.Changes = append([]types.TransactionChange(nil), tx.Changes...)
+		if err := e.StateUpdater.AddTransaction(snapshot); err != nil {
+			e.Context.Logger.Warn(fmt.Sprintf("Failed to save history: %v", err))
 		}
 	}
 
@@ -282,237 +229,154 @@ func (e *Engine) runSequential(items []ConfigItem, createFn ResourceCreator) err
 	return nil
 }
 
-// RunParallel processes configuration items in the given layer in parallel.
-func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error {
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(layer))
-	var updatedResources []Resource // Track successful ones (For Rollback)
-	var mu sync.Mutex               // lock for updatedResources
+// processItem runs the full lifecycle of one config item: condition, template
+// rendering, creation, validation, hooks, diff, apply and state update.
+func (e *Engine) processItem(it ConfigItem, createFn ResourceCreator) itemOutcome {
+	log := e.Context.Logger
 
-	// Transaction recording
-	transaction := types.Transaction{
-		ID:        uuid.New().String(),
-		Timestamp: time.Now(),
-		Status:    "success",
-		Changes:   []types.TransactionChange{},
+	// Params preparation (copy so callers' items are not mutated)
+	params := make(map[string]interface{}, len(it.Params)+2)
+	for k, v := range it.Params {
+		params[k] = v
 	}
-	var txMu sync.Mutex
+	params["state"] = it.State
+	params["prune"] = it.Prune
+	it.Params = params
 
-	// Initialize Backup Manager
-	e.Context.TxID = transaction.ID
-	e.Context.BackupManager = state.NewBackupManager("") // Use default path
+	// 0. Check Condition (When)
+	if it.When != "" {
+		shouldRun, err := EvaluateCondition(it.When, e.Context)
+		if err != nil {
+			log.Error(fmt.Sprintf("[%s] Condition Error: %v", it.Name, err))
+			return itemOutcome{err: err}
+		}
+		if !shouldRun {
+			log.Debug(fmt.Sprintf("[%s] Skipped (Condition not met: %s)", it.Name, it.When))
+			return itemOutcome{}
+		}
+	}
 
-	for _, item := range layer {
-		wg.Add(1)
-		go func(it ConfigItem) {
-			defer wg.Done()
+	// 0.5 Render Templates in Params
+	if err := renderParams(it.Params, e.Context); err != nil {
+		log.Error(fmt.Sprintf("[%s] Template Error: %v", it.Name, err))
+		return itemOutcome{err: err}
+	}
 
-			// Params preparation
-			if it.Params == nil {
-				it.Params = make(map[string]interface{})
+	// 1. Create resource
+	res, err := createFn(it.Type, it.Name, it.Params, e.Context)
+	if err != nil {
+		log.Error(fmt.Sprintf("[%s] Invalid resource definition: %v", it.Name, err))
+		return itemOutcome{err: err}
+	}
+
+	// 1.5 Validate resource configuration
+	if err := res.Validate(e.Context); err != nil {
+		log.Error(fmt.Sprintf("[%s] Validation Failed: %v", it.Name, err))
+		return itemOutcome{err: err}
+	}
+
+	// 1.9 PRE-HOOK
+	if it.Hooks.Pre != "" {
+		if err := executeHook(e.Context, it.Hooks.Pre); err != nil {
+			log.Error(fmt.Sprintf("[%s] Pre-Hook Failed: %v. Skipping resource.", it.Name, err))
+			return itemOutcome{err: err}
+		}
+		log.Debug(fmt.Sprintf("[%s] Pre-Hook executed", it.Name))
+	}
+
+	// Package managers hold a global lock; never run two at once.
+	if isPackageManagerType(it.Type) {
+		e.packageMu.Lock()
+	}
+
+	// 2. Capture Diff (if supported) BEFORE Apply
+	var pendingDiff string
+	if differ, ok := res.(Differ); ok {
+		if d, err := differ.Diff(e.Context); err == nil {
+			pendingDiff = d
+		}
+	}
+
+	// 2. Apply resource
+	result, applyErr := res.Apply(e.Context)
+
+	if isPackageManagerType(it.Type) {
+		e.packageMu.Unlock()
+	}
+
+	// 2.1 POST-HOOK (runs whenever Apply was attempted; failure only warns)
+	if it.Hooks.Post != "" {
+		if hookErr := executeHook(e.Context, it.Hooks.Post); hookErr != nil {
+			log.Warn(fmt.Sprintf("[%s] Post-Hook Failed: %v", it.Name, hookErr))
+		} else {
+			log.Debug(fmt.Sprintf("[%s] Post-Hook executed", it.Name))
+		}
+	}
+
+	out := itemOutcome{res: res}
+	status := "success"
+
+	switch {
+	case applyErr != nil:
+		status = "failed"
+		out.err = applyErr
+		log.Error(fmt.Sprintf("[%s] %s: Failed: %v", it.Type, it.Name, applyErr))
+
+		// 2.2 ON-FAIL HOOK
+		if it.Hooks.OnFail != "" {
+			if hookErr := executeHook(e.Context, it.Hooks.OnFail); hookErr != nil {
+				log.Warn(fmt.Sprintf("[%s] On-Fail Hook Failed: %v", it.Name, hookErr))
 			}
-			it.Params["state"] = it.State
-			it.Params["prune"] = it.Prune
+		}
 
-			// 0. Check Condition (When)
-			if it.When != "" {
-				shouldRun, err := EvaluateCondition(it.When, e.Context)
-				if err != nil {
-					pterm.Error.Printf("[%s] Condition Error: %v\n", it.Name, err)
-					errChan <- err
-					return
-				}
-				if !shouldRun {
-					e.Context.Logger.Debug(fmt.Sprintf("[%s] Skipped (Condition not met: %s)", it.Name, it.When))
-					return
-				}
-			}
+	case result.Changed:
+		log.Info(fmt.Sprintf("[%s] %s: %s", it.Type, it.Name, result.Message))
 
-			// 0.5 Render Templates in Params
-			if err := renderParams(it.Params, e.Context); err != nil {
-				e.Context.Logger.Error(fmt.Sprintf("[%s] Template Error: %v", it.Name, err))
-				errChan <- err
-				return
-			}
-
-			// 1. Create resource
-			res, err := createFn(it.Type, it.Name, it.Params, e.Context)
-			if err != nil {
-				Failure(err, "Skipping invalid resource definition: "+it.Name)
-				errChan <- err
-				return
-			}
-
-			// 1.5 Validate resource configuration
-			if err := res.Validate(e.Context); err != nil {
-				e.Context.Logger.Error(fmt.Sprintf("[%s] Validation Failed: %v", it.Name, err))
-				errChan <- err
-				return
-			}
-
-			// 1.9 PRE-HOOK
-			if it.Hooks.Pre != "" {
-				if err := executeHook(e.Context, it.Hooks.Pre); err != nil {
-					e.Context.Logger.Error(fmt.Sprintf("[%s] Pre-Hook Failed: %v. Skipping resource.", it.Name, err))
-					errChan <- err
-					return
-				}
-				e.Context.Logger.Debug(fmt.Sprintf("[%s] Pre-Hook executed", it.Name))
-			}
-
-			// Package managers must not run concurrently (lock contention).
-			if isPackageManagerType(it.Type) {
-				e.packageMu.Lock()
-			}
-
-			// 2. Capture Diff (if supported) BEFORE Apply
-			var pendingDiff string
-			if differ, ok := res.(Differ); ok {
-				if d, err := differ.Diff(e.Context); err == nil {
-					pendingDiff = d
-				}
-			}
-
-			// 2. Apply resource
-			result, err := res.Apply(e.Context)
-
-			if isPackageManagerType(it.Type) {
-				e.packageMu.Unlock()
-			}
-
-			// 2.1 POST-HOOK (Always runs if Apply attempted, unless Pre failed)
-			if it.Hooks.Post != "" {
-				// We log warnings but don't fail the whole resource if Post hook fails?
-				// Plan said: "If ... post ... hooks fail, we log a WARNING, but the main resource status remains"
-				if hookErr := executeHook(e.Context, it.Hooks.Post); hookErr != nil {
-					e.Context.Logger.Warn(fmt.Sprintf("[%s] Post-Hook Failed: %v", it.Name, hookErr))
-				} else {
-					e.Context.Logger.Debug(fmt.Sprintf("[%s] Post-Hook executed", it.Name))
-				}
-			}
-
-			status := "success"
-
-			if err != nil {
-				status = "failed"
-				errChan <- err
-				e.Context.Logger.Error(fmt.Sprintf("[%s] %s: Failed: %v", it.Type, it.Name, err))
-
-				// 2.2 ON-FAIL HOOK
-				if it.Hooks.OnFail != "" {
-					if hookErr := executeHook(e.Context, it.Hooks.OnFail); hookErr != nil {
-						e.Context.Logger.Warn(fmt.Sprintf("[%s] On-Fail Hook Failed: %v", it.Name, hookErr))
-					}
-				}
-			} else if result.Changed {
-				// Success
-				e.Context.Logger.Info(fmt.Sprintf("[%s] %s: %s", it.Type, it.Name, result.Message))
-
-				// 2.3 ON-CHANGE HOOK
-				if it.Hooks.OnChange != "" {
-					if hookErr := executeHook(e.Context, it.Hooks.OnChange); hookErr != nil {
-						e.Context.Logger.Warn(fmt.Sprintf("[%s] On-Change Hook Failed: %v", it.Name, hookErr))
-					} else {
-						e.Context.Logger.Info(fmt.Sprintf("   └── Hook: %s", it.Hooks.OnChange))
-					}
-				}
-
-				// Save successful changes (For Rollback)
-				if !e.Context.DryRun {
-					mu.Lock()
-					updatedResources = append(updatedResources, res)
-					mu.Unlock()
-				}
-
-				// Record change for History
-				change := types.TransactionChange{
-					Type:   it.Type,
-					Name:   it.Name,
-					Action: "applied",
-					Diff:   pendingDiff,
-				}
-
-				// Try to get target path
-				if p, ok := it.Params["path"].(string); ok {
-					change.Target = p
-				} else {
-					change.Target = it.Name // Fallback
-				}
-
-				// Use local interface to avoid import cycle
-				type Backupable interface {
-					GetBackupPath() string
-				}
-
-				if b, ok := res.(Backupable); ok {
-					change.BackupPath = b.GetBackupPath()
-				}
-
-				txMu.Lock()
-				transaction.Changes = append(transaction.Changes, change)
-				txMu.Unlock()
-
+		// 2.3 ON-CHANGE HOOK
+		if it.Hooks.OnChange != "" {
+			if hookErr := executeHook(e.Context, it.Hooks.OnChange); hookErr != nil {
+				log.Warn(fmt.Sprintf("[%s] On-Change Hook Failed: %v", it.Name, hookErr))
 			} else {
-				// No Change (Info or Skipped)
-				msg := "OK"
-				if result.Message != "" {
-					msg = result.Message
-				}
-				e.Context.Logger.Debug(fmt.Sprintf("[%s] %s: %s", it.Type, it.Name, msg))
+				log.Info(fmt.Sprintf("   └── Hook: %s", it.Hooks.OnChange))
 			}
-
-			// 3. Save State
-			if !e.Context.DryRun && e.StateUpdater != nil {
-				e.StateUpdater.UpdateResource(it.Type, it.Name, it.State, status)
-			}
-		}(item)
-	}
-
-	wg.Wait()
-	close(errChan)
-
-	// Check for errors
-	errCount := 0
-	for range errChan {
-		errCount++
-	}
-
-	if errCount > 0 {
-		transaction.Status = "failed"
-		// Trigger Rollback
-		if !e.Context.DryRun {
-			pterm.Println()
-			pterm.Error.Println("Error occurred. Initiating Rollback...")
-
-			// 1. First revert operations that succeeded in the current layer (but incomplete due to other errors)
-			pterm.Warning.Printf("Visualizing Rollback for current layer (%d resources)...\n", len(updatedResources))
-			e.rollback(updatedResources)
-
-			// 2. Revert operations completed in previous layers
-			pterm.Warning.Printf("Visualizing Rollback for previous layers (%d resources)...\n", len(e.AppliedHistory))
-			e.rollback(e.AppliedHistory)
-
-			transaction.Status = "reverted"
 		}
+
+		change := types.TransactionChange{
+			Type:   it.Type,
+			Name:   it.Name,
+			Action: "applied",
+			Diff:   pendingDiff,
+			Target: it.Name, // Fallback
+		}
+		if p, ok := it.Params["path"].(string); ok {
+			change.Target = p
+		}
+
+		// Local interface to avoid an import cycle
+		type Backupable interface {
+			GetBackupPath() string
+		}
+		if b, ok := res.(Backupable); ok {
+			change.BackupPath = b.GetBackupPath()
+		}
+		out.change = &change
+
+	default:
+		msg := "OK"
+		if result.Message != "" {
+			msg = result.Message
+		}
+		log.Debug(fmt.Sprintf("[%s] %s: %s", it.Type, it.Name, msg))
 	}
 
-	// Save History
+	// 3. Save State. A failed attempt is recorded as "failed" too.
 	if !e.Context.DryRun && e.StateUpdater != nil {
-		if err := e.StateUpdater.AddTransaction(transaction); err != nil {
-			fmt.Printf("⚠️ Warning: Failed to save history: %v\n", err)
+		if err := e.StateUpdater.UpdateResource(it.Type, it.Name, it.State, status); err != nil {
+			log.Warn(fmt.Sprintf("[%s] Failed to save state: %v", it.Name, err))
 		}
 	}
 
-	if errCount > 0 {
-		return fmt.Errorf("encountered %d errors in parallel layer execution", errCount)
-	}
-
-	// Add successful ones to global history
-	// Note: Must be LIFO for Revert order. rollback function iterates specifically in reverse.
-	// We add FIFO to AppliedHistory (append).
-	e.AppliedHistory = append(e.AppliedHistory, updatedResources...)
-
-	return nil
+	return out
 }
 
 // PlanResult represents the outcome of a Plan operation.
