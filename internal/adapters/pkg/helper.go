@@ -20,11 +20,6 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 		pkgName = name
 	}
 
-	state, _ := params["state"].(string)
-	if state == "" {
-		state = "present"
-	}
-
 	switch ctx.Distro {
 	case "arch", "cachyos", "manjaro", "endeavouros":
 		return NewPacmanAdapter(pkgName, params), nil

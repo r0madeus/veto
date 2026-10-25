@@ -154,7 +154,7 @@ func TestEngine_RunParallel(t *testing.T) {
 
 		// Verify Rollback called on res1
 		if !res1.RevertCalled {
-			// t.Error("Rollback not triggered for res1")
+			t.Error("Rollback not triggered for res1")
 		}
 
 		// Check Status Updates
@@ -165,7 +165,7 @@ func TestEngine_RunParallel(t *testing.T) {
 			}
 		}
 		if !foundReverted {
-			// t.Error("State not updated to 'reverted' for res1")
+			t.Error("State not updated to 'reverted' for res1")
 		}
 	})
 

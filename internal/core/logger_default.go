@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"io"
 	"log/slog"
 
@@ -86,6 +85,3 @@ func (l *DefaultLogger) With(args ...any) Logger {
 func (l *DefaultLogger) SetLevel(level LogLevel) {
 	l.level = level
 }
-
-// Dummy context to satisfy slogans
-var ctx = context.Background()

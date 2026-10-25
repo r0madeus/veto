@@ -184,7 +184,9 @@ func TestRevert_Modification_NoBackup(t *testing.T) {
 
 	// Simulate Apply manually to skip backup creation (since we passed no BackupManager)
 	// The file is "modified" on disk
-	os.WriteFile(targetPath, []byte("Corrupted Data"), 0644)
+	if err := os.WriteFile(targetPath, []byte("Corrupted Data"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	fRes.ActionPerformed = "modified"
 	fRes.BackupPath = "" // Explicitly empty

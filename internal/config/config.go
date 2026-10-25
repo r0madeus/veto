@@ -72,9 +72,9 @@ func LoadConfig(path string, decrypt bool) (*Config, error) {
 	// Passing nil transport as system.Detect should handle local fallback
 	ctx := core.NewSystemContext(false, nil)
 	system.Detect(ctx) // Lightweight detection
-	os.Setenv("VETO_OS", ctx.OS)
-	os.Setenv("VETO_DISTRO", ctx.Distro)
-	os.Setenv("VETO_HOSTNAME", ctx.Hostname)
+	_ = os.Setenv("VETO_OS", ctx.OS)
+	_ = os.Setenv("VETO_DISTRO", ctx.Distro)
+	_ = os.Setenv("VETO_HOSTNAME", ctx.Hostname)
 
 	// 1. If .env exists in project root or next to config, load it
 	// Search next to config file
@@ -230,7 +230,7 @@ func expandConfig(cfg *Config) {
 		expanded := os.ExpandEnv(v)
 		cfg.Vars[k] = expanded
 		// Add to environment so resources can use these variables
-		os.Setenv(k, expanded)
+		_ = os.Setenv(k, expanded)
 	}
 
 	// 2. Resources
@@ -301,7 +301,7 @@ func decryptConfig(cfg *Config) {
 	for k, v := range cfg.Vars {
 		if decrypted, err := crypto.Decrypt(v, key); err == nil {
 			cfg.Vars[k] = decrypted
-			os.Setenv(k, decrypted)
+			_ = os.Setenv(k, decrypted)
 		}
 	}
 

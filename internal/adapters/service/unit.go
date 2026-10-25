@@ -195,8 +195,8 @@ func (r *SystemdUnitAdapter) Apply(ctx *core.SystemContext) (core.Result, error)
 func (r *SystemdUnitAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "created" {
 		// Remove file
-		ctx.Transport.Execute(ctx.Context, "rm "+utils.ShellQuote(r.Path)) // Try sudo rm if needed
-		ctx.Transport.Execute(ctx.Context, "systemctl daemon-reload")
+		_, _ = ctx.Transport.Execute(ctx.Context, "rm "+utils.ShellQuote(r.Path)) // Try sudo rm if needed
+		_, _ = ctx.Transport.Execute(ctx.Context, "systemctl daemon-reload")
 	}
 	return nil
 }

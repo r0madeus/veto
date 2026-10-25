@@ -55,7 +55,9 @@ func TestUnitApply_NoChange(t *testing.T) {
 	unitContent := "[Unit]\nDescription=Test\n"
 
 	// Pre-create file
-	ctx.FS.WriteFile("/etc/systemd/system/test.service", []byte(unitContent), 0644)
+	if err := ctx.FS.WriteFile("/etc/systemd/system/test.service", []byte(unitContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	res := NewSystemdUnitAdapter("test.service", map[string]interface{}{
 		"content": unitContent,

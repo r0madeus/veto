@@ -153,7 +153,7 @@ func (a *IconAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// 4. Update Cache
 	if !ctx.DryRun {
 		// Ignore error if gtk-update-icon-cache is missing
-		ctx.Transport.Execute(ctx.Context, "gtk-update-icon-cache -f -t "+utils.ShellQuote(dest))
+		_, _ = ctx.Transport.Execute(ctx.Context, "gtk-update-icon-cache -f -t "+utils.ShellQuote(dest))
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Icon theme %s installed", a.Name)), nil

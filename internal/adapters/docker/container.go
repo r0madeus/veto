@@ -119,7 +119,7 @@ func (a *ContainerAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			if err := a.Runtime.Remove(ctx.Context, a.Name, true); err != nil {
 				return core.Failure(err, "Failed to remove component for recreation"), err
 			}
-			exists = false
+			// Fall through to create the container with the new image.
 		} else {
 			// State correction without recreation
 			if a.State == "running" && !state.Running {

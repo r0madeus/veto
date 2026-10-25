@@ -90,9 +90,6 @@ func (g *Graph) TopologicalSort() ([][]ConfigItem, error) {
 		layerNames := make([]string, len(queue))
 		copy(layerNames, queue)
 
-		// Reset queue for next layer
-		queue = nil
-
 		for _, nodeName := range layerNames {
 			item := g.Nodes[nodeName]
 			currentLayer = append(currentLayer, item)

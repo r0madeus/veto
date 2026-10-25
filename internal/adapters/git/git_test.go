@@ -44,7 +44,9 @@ func TestGitAdapter_Check_Clone(t *testing.T) {
 func TestGitAdapter_Check_UpToDate(t *testing.T) {
 	tmpDir := t.TempDir()
 	repoPath := filepath.Join(tmpDir, "existing-repo")
-	os.MkdirAll(filepath.Join(repoPath, ".git"), 0755) // Simulate git repo
+	if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0755); err != nil { // Simulate git repo
+		t.Fatal(err)
+	}
 
 	mockTransport := core.NewMockTransport()
 	ctx := &core.SystemContext{

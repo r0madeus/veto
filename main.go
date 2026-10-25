@@ -1,7 +1,14 @@
 package main
 
-import "github.com/melih-ucgun/veto/cmd"
+import (
+	"os"
+
+	"github.com/melih-ucgun/veto/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	// cobra has already printed the error (unknown command, bad flag, ...).
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

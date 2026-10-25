@@ -126,7 +126,7 @@ func (a *FontAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 	// 4. Update Cache
 	if !ctx.DryRun {
-		ctx.Transport.Execute(ctx.Context, "fc-cache -f")
+		_, _ = ctx.Transport.Execute(ctx.Context, "fc-cache -f") // best effort
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Font %s installed to %s", a.Name, dest)), nil

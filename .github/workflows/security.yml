@@ -5,6 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  workflow_dispatch: # manual run
   schedule:
     - cron: '0 0 * * 1' # Her Pazartesi çalışır
 

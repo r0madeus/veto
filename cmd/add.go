@@ -216,7 +216,7 @@ func appendResourceToConfig(path string, res config.ResourceConfig) ([]ActionIte
 				// 3. Create Symlink
 				if err := os.Symlink(storageAbsPath, absTarget); err != nil {
 					// Rolling back move?
-					moveFile(storageAbsPath, absTarget)
+					_ = moveFile(storageAbsPath, absTarget)
 					return actions, fmt.Errorf("failed to create symlink: %w", err)
 				}
 				actions = append(actions, ActionItem{"🔗", "Link Created", fmt.Sprintf("%s -> %s", absTarget, storageRelPath)})
