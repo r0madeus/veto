@@ -83,3 +83,16 @@ func TestHostKeyCallback_RejectsUnknownAndMismatchedKey(t *testing.T) {
 		t.Error("unknown host must be rejected")
 	}
 }
+
+func TestAuthMethods_DoesNotUseBecomePasswordForLogin(t *testing.T) {
+	if _, err := authMethods(HostConfig{Name: "h", BecomePassword: "sudo-secret"}); err == nil {
+		t.Fatal("become password must not be used as SSH login credential")
+	}
+}
+
+func TestAuthMethods_Password(t *testing.T) {
+	m, err := authMethods(HostConfig{Name: "h", SSHPassword: "login", BecomePassword: "sudo"})
+	if err != nil || len(m) != 1 {
+		t.Fatalf("expected one password method, got %d, err %v", len(m), err)
+	}
+}

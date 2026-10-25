@@ -9,4 +9,5 @@ hosts:
   #   address: 192.0.2.10
   #   user: deploy
   #   known_hosts: /path/to/known_hosts   # optional override
+  #   key_path: ~/.ssh/id_ed25519         # or vars.ansible_ssh_pass for password login
   #   insecure_host_key: false            # true disables verification (not recommended)

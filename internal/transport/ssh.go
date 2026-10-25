@@ -47,7 +47,8 @@ type HostConfig struct {
 	Port           int
 	SSHKeyPath     string
 	BecomeMethod   string
-	BecomePassword string
+	BecomePassword string // sudo password only; never used for SSH login
+	SSHPassword    string // SSH login password (used when no key_path is set)
 
 	// KnownHostsPath is the known_hosts file used to verify the server's host key.
 	// Defaults to ~/.ssh/known_hosts.
@@ -64,8 +65,10 @@ type SSHTransport struct {
 	Logger     core.Logger
 }
 
-func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error) {
-	var authMethods []ssh.AuthMethod
+// authMethods builds the SSH login methods for a host. The sudo (become)
+// password is never used for login; password auth needs SSHPassword.
+func authMethods(host HostConfig) ([]ssh.AuthMethod, error) {
+	var methods []ssh.AuthMethod
 
 	if host.SSHKeyPath != "" {
 		key, err := os.ReadFile(host.SSHKeyPath)
@@ -76,10 +79,21 @@ func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error
 		if err != nil {
 			return nil, fmt.Errorf("ssh anahtarı parse edilemedi: %w", err)
 		}
-		authMethods = append(authMethods, ssh.PublicKeys(signer))
-	} else {
-		// Şifre ile kimlik doğrulama
-		authMethods = append(authMethods, ssh.Password(host.BecomePassword))
+		methods = append(methods, ssh.PublicKeys(signer))
+	}
+	if host.SSHPassword != "" {
+		methods = append(methods, ssh.Password(host.SSHPassword))
+	}
+	if len(methods) == 0 {
+		return nil, fmt.Errorf("no ssh credentials for host %s: set key_path or vars.ansible_ssh_pass", host.Name)
+	}
+	return methods, nil
+}
+
+func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error) {
+	authMethods, err := authMethods(host)
+	if err != nil {
+		return nil, err
 	}
 
 	hostKeyCb, err := hostKeyCallback(host)

@@ -74,11 +74,12 @@ func (e *Executor) Run(command string) error {
 func (e *Executor) runOnHost(h inventory.Host, cmd string) error {
 	// 1. Prepare Transport Config
 	cfgHost := transport.HostConfig{
-		Name:       h.Name,
-		Address:    h.Address,
-		User:       h.User,
-		Port:       h.Port,
-		SSHKeyPath: h.KeyPath,
+		Name:        h.Name,
+		Address:     h.Address,
+		User:        h.User,
+		Port:        h.Port,
+		SSHKeyPath:  h.KeyPath,
+		SSHPassword: h.Vars["ansible_ssh_pass"],
 
 		KnownHostsPath:        h.KnownHosts,
 		InsecureIgnoreHostKey: h.InsecureHostKey,

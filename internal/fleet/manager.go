@@ -73,6 +73,7 @@ func (f *FleetManager) ApplyConfig(layers [][]core.ConfigItem, concurrency int, 
 					SSHKeyPath:     h.KeyPath,
 					BecomeMethod:   h.Vars["ansible_become_method"],
 					BecomePassword: h.Vars["ansible_become_password"],
+					SSHPassword:    h.Vars["ansible_ssh_pass"],
 
 					KnownHostsPath:        h.KnownHosts,
 					InsecureIgnoreHostKey: h.InsecureHostKey,
