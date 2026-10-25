@@ -2,9 +2,10 @@ package snapshot
 
 import (
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 
-	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // Timeshift manages integration with the timeshift tool
@@ -30,7 +31,7 @@ func (t *Timeshift) CreateSnapshot(ctx *core.SystemContext, description string) 
 	pterm.Info.Println("Creating Timeshift snapshot (this might take a while)...")
 
 	// Timeshift needs to run as root usually. Veto assumes it has permissions or sudo.
-	fullCmd := fmt.Sprintf("timeshift --create --comments \"%s\" --tags O --script", description)
+	fullCmd := "timeshift --create --comments " + utils.ShellQuote(description) + " --tags O --script"
 
 	// Output'u yakalamak debug için iyi olabilir
 	if _, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {

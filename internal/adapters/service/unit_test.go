@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/transport"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/transport"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +55,9 @@ func TestUnitApply_NoChange(t *testing.T) {
 	unitContent := "[Unit]\nDescription=Test\n"
 
 	// Pre-create file
-	ctx.FS.WriteFile("/etc/systemd/system/test.service", []byte(unitContent), 0644)
+	if err := ctx.FS.WriteFile("/etc/systemd/system/test.service", []byte(unitContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	res := NewSystemdUnitAdapter("test.service", map[string]interface{}{
 		"content": unitContent,

@@ -3,7 +3,7 @@ resources:
   - id: git-simple
     type: git
     parameters:
-      repo: https://github.com/melih-ucgun/veto.git # Self repo for testing
+      repo: https://github.com/r0madeus/veto.git # Self repo for testing
       dest: /tmp/veto-git-test/simple
       state: present
 

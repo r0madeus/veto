@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // FirewallProvider defines the interface for firewall operations

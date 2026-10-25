@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 )
 
 func init() {
@@ -101,11 +101,11 @@ func (a *FontAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	tmpExtract := fmt.Sprintf("/tmp/veto_extract_%s", a.Name)
 
 	cmds := []string{
-		fmt.Sprintf("mkdir -p %s", tmpExtract),
-		fmt.Sprintf("unzip -o %s -d %s", tmpRemote, tmpExtract),
-		fmt.Sprintf("mkdir -p %s", dest),
-		fmt.Sprintf("cp -r %s/* %s/", tmpExtract, dest),
-		fmt.Sprintf("rm -rf %s %s", tmpExtract, tmpRemote),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(tmpExtract)),
+		fmt.Sprintf("unzip -o %s -d %s", utils.ShellQuote(tmpRemote), utils.ShellQuote(tmpExtract)),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(dest)),
+		fmt.Sprintf("cp -r %s/* %s/", utils.ShellQuote(tmpExtract), utils.ShellQuote(dest)),
+		fmt.Sprintf("rm -rf %s %s", utils.ShellQuote(tmpExtract), utils.ShellQuote(tmpRemote)),
 	}
 
 	// If system install, we might need sudo.
@@ -126,7 +126,7 @@ func (a *FontAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 	// 4. Update Cache
 	if !ctx.DryRun {
-		ctx.Transport.Execute(ctx.Context, "fc-cache -f")
+		_, _ = ctx.Transport.Execute(ctx.Context, "fc-cache -f") // best effort
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Font %s installed to %s", a.Name, dest)), nil

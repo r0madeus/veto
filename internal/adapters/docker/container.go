@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 )
 
 func init() {
@@ -119,7 +119,7 @@ func (a *ContainerAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			if err := a.Runtime.Remove(ctx.Context, a.Name, true); err != nil {
 				return core.Failure(err, "Failed to remove component for recreation"), err
 			}
-			exists = false
+			// Fall through to create the container with the new image.
 		} else {
 			// State correction without recreation
 			if a.State == "running" && !state.Running {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestApkAdapter_Check(t *testing.T) {

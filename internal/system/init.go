@@ -3,7 +3,7 @@ package system
 import (
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func detectInitSystem(ctx *core.SystemContext, execCmd func(string) (string, error)) string {

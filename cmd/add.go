@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/config"
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/hub"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/config"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/hub"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -216,7 +216,7 @@ func appendResourceToConfig(path string, res config.ResourceConfig) ([]ActionIte
 				// 3. Create Symlink
 				if err := os.Symlink(storageAbsPath, absTarget); err != nil {
 					// Rolling back move?
-					moveFile(storageAbsPath, absTarget)
+					_ = moveFile(storageAbsPath, absTarget)
 					return actions, fmt.Errorf("failed to create symlink: %w", err)
 				}
 				actions = append(actions, ActionItem{"🔗", "Link Created", fmt.Sprintf("%s -> %s", absTarget, storageRelPath)})

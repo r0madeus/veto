@@ -7,13 +7,13 @@ import (
 
 	"sort"
 
-	"github.com/melih-ucgun/veto/internal/config"
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/discovery"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/config"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/discovery"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

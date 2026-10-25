@@ -4,5 +4,5 @@ resources:
     parameters:
       # We will point to a folder that has Hello-World (setup in script)
       # But we claim it should be Veto repo.
-      repo: https://github.com/melih-ucgun/veto.git
+      repo: https://github.com/r0madeus/veto.git
       dest: /tmp/veto-git-verify/mismatch

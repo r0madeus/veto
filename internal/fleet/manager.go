@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/inventory"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/inventory"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 // FleetManager orchestrates operations across multiple hosts.
@@ -73,6 +73,10 @@ func (f *FleetManager) ApplyConfig(layers [][]core.ConfigItem, concurrency int, 
 					SSHKeyPath:     h.KeyPath,
 					BecomeMethod:   h.Vars["ansible_become_method"],
 					BecomePassword: h.Vars["ansible_become_password"],
+					SSHPassword:    h.Vars["ansible_ssh_pass"],
+
+					KnownHostsPath:        h.KnownHosts,
+					InsecureIgnoreHostKey: h.InsecureHostKey,
 				}
 				// Set timeout for connection
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -105,35 +109,41 @@ func (f *FleetManager) ApplyConfig(layers [][]core.ConfigItem, concurrency int, 
 			engine := core.NewEngine(sysCtx, nil) // State updater per host TODO
 
 			// 5. Execute Layers
+			// Merge host vars into context Vars
+			if sysCtx.Vars == nil {
+				sysCtx.Vars = make(map[string]string)
+			}
+			for k, v := range h.Vars {
+				sysCtx.Vars[k] = v
+			}
+
+			// Deep copy layer params for this host
+			hostLayers := make([][]core.ConfigItem, len(layers))
 			for i, layer := range layers {
-				// Deep copy layer params for this host
-				hostLayer := make([]core.ConfigItem, len(layer))
+				hostLayers[i] = make([]core.ConfigItem, len(layer))
 				for j, item := range layer {
 					newItem := item
-					// Copy Params map
-					newItem.Params = make(map[string]interface{})
+					newItem.Params = make(map[string]interface{}, len(item.Params))
 					for k, v := range item.Params {
 						newItem.Params[k] = v
 					}
-					hostLayer[j] = newItem
+					hostLayers[i][j] = newItem
 				}
+			}
 
-				// Merge host vars into context Vars
-				if sysCtx.Vars == nil {
-					sysCtx.Vars = make(map[string]string)
-				}
-				if h.Vars != nil {
-					for k, v := range h.Vars {
-						sysCtx.Vars[k] = v
+			// One transaction per host; a failure rolls back every layer.
+			failedLayer := 0
+			engine.OnLayerStart = func(i, total int, layer []core.ConfigItem) func(error) {
+				return func(err error) {
+					if err != nil {
+						failedLayer = i + 1
 					}
 				}
-
-				// Reuse Engine.RunParallel logic
-				if err := engine.RunParallel(hostLayer, createFn); err != nil {
-					hostLogger.Error("Layer %d Failed: %v", i+1, err)
-					errChan <- fmt.Errorf("[%s] layer %d failed: %w", h.Name, i+1, err)
-					return // Stop this host
-				}
+			}
+			if err := engine.RunLayers(hostLayers, createFn); err != nil {
+				hostLogger.Error("Layer %d Failed: %v", failedLayer, err)
+				errChan <- fmt.Errorf("[%s] layer %d failed: %w", h.Name, failedLayer, err)
+				return // Stop this host
 			}
 
 			hostLogger.Info("Completed Successfully")

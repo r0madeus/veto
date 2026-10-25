@@ -5,14 +5,82 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pkg/sftp"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+// hostKeyCallback builds the host key verification callback for a host.
+// Verification against known_hosts is the default; skipping it requires
+// an explicit InsecureIgnoreHostKey opt-in.
+func hostKeyCallback(host HostConfig) (ssh.HostKeyCallback, error) {
+	if host.InsecureIgnoreHostKey {
+		return ssh.InsecureIgnoreHostKey(), nil
+	}
+
+	path := host.KnownHostsPath
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("cannot locate known_hosts: %w", err)
+		}
+		path = filepath.Join(home, ".ssh", "known_hosts")
+	}
+
+	cb, err := knownhosts.New(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load known_hosts (%s): %w; add the host with 'ssh-keyscan -p %d %s >> %s' or set insecure_host_key: true for this host", path, err, host.Port, host.Address, path)
+	}
+	return cb, nil
+}
+
+// sudoWrap runs the whole command line (including pipes and && chains) under
+// sudo, reading the password from stdin without a prompt.
+func sudoWrap(cmd string) string {
+	return "sudo -S -p '' sh -c " + utils.ShellQuote(cmd)
+}
+
+// dialSSH connects honoring ctx cancellation and bounds the handshake by the
+// config timeout (ssh.Dial only bounds the TCP connect).
+func dialSSH(ctx context.Context, addr string, cfg *ssh.ClientConfig) (*ssh.Client, error) {
+	dialer := net.Dialer{Timeout: cfg.Timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Timeout > 0 {
+		_ = conn.SetDeadline(time.Now().Add(cfg.Timeout))
+	}
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, cfg)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return ssh.NewClient(c, chans, reqs), nil
+}
+
+// waitContext runs fn and returns its error, or closes the session and returns
+// when ctx is cancelled first. The output of fn must not be read after a cancel.
+func waitContext(ctx context.Context, session *ssh.Session, fn func() error) error {
+	done := make(chan error, 1)
+	go func() { done <- fn() }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		session.Close()
+		return ctx.Err()
+	}
+}
 
 type HostConfig struct {
 	Name           string
@@ -21,7 +89,14 @@ type HostConfig struct {
 	Port           int
 	SSHKeyPath     string
 	BecomeMethod   string
-	BecomePassword string
+	BecomePassword string // sudo password only; never used for SSH login
+	SSHPassword    string // SSH login password (used when no key_path is set)
+
+	// KnownHostsPath is the known_hosts file used to verify the server's host key.
+	// Defaults to ~/.ssh/known_hosts.
+	KnownHostsPath string
+	// InsecureIgnoreHostKey disables host key verification. Opt-in only.
+	InsecureIgnoreHostKey bool
 }
 
 type SSHTransport struct {
@@ -32,8 +107,10 @@ type SSHTransport struct {
 	Logger     core.Logger
 }
 
-func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error) {
-	var authMethods []ssh.AuthMethod
+// authMethods builds the SSH login methods for a host. The sudo (become)
+// password is never used for login; password auth needs SSHPassword.
+func authMethods(host HostConfig) ([]ssh.AuthMethod, error) {
+	var methods []ssh.AuthMethod
 
 	if host.SSHKeyPath != "" {
 		key, err := os.ReadFile(host.SSHKeyPath)
@@ -44,21 +121,37 @@ func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error
 		if err != nil {
 			return nil, fmt.Errorf("ssh anahtarı parse edilemedi: %w", err)
 		}
-		authMethods = append(authMethods, ssh.PublicKeys(signer))
-	} else {
-		// Şifre ile kimlik doğrulama
-		authMethods = append(authMethods, ssh.Password(host.BecomePassword))
+		methods = append(methods, ssh.PublicKeys(signer))
+	}
+	if host.SSHPassword != "" {
+		methods = append(methods, ssh.Password(host.SSHPassword))
+	}
+	if len(methods) == 0 {
+		return nil, fmt.Errorf("no ssh credentials for host %s: set key_path or vars.ansible_ssh_pass", host.Name)
+	}
+	return methods, nil
+}
+
+func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error) {
+	authMethods, err := authMethods(host)
+	if err != nil {
+		return nil, err
+	}
+
+	hostKeyCb, err := hostKeyCallback(host)
+	if err != nil {
+		return nil, fmt.Errorf("ssh host key setup failed (%s): %w", host.Name, err)
 	}
 
 	sshConfig := &ssh.ClientConfig{
 		User:            host.User,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Not: Prodüksiyonda known_hosts doğrulaması önerilir
+		HostKeyCallback: hostKeyCb,
 		Timeout:         10 * time.Second,
 	}
 
 	addr := fmt.Sprintf("%s:%d", host.Address, host.Port)
-	client, err := ssh.Dial("tcp", addr, sshConfig)
+	client, err := dialSSH(ctx, addr, sshConfig)
 	if err != nil {
 		// DÜZELTME: host.HostName yerine host.Name kullanıldı
 		return nil, fmt.Errorf("ssh bağlantı hatası (%s): %w", host.Name, err)
@@ -105,7 +198,15 @@ func (t *SSHTransport) Execute(ctx context.Context, cmd string) (string, error) 
 	}
 	defer session.Close()
 
-	out, err := session.CombinedOutput(cmd)
+	var out []byte
+	err = waitContext(ctx, session, func() error {
+		var runErr error
+		out, runErr = session.CombinedOutput(cmd)
+		return runErr
+	})
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	return string(out), err
 }
 
@@ -117,7 +218,7 @@ func (t *SSHTransport) runRemoteSecureCaptured(ctx context.Context, cmdStr strin
 	}
 	defer session.Close()
 
-	finalCmd := fmt.Sprintf("sudo -S -p '' %s", cmdStr)
+	finalCmd := sudoWrap(cmdStr)
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
@@ -140,10 +241,12 @@ func (t *SSHTransport) runRemoteSecureCaptured(ctx context.Context, cmdStr strin
 		}
 	}()
 
-	err = session.Wait()
-	output := buf.String()
+	err = waitContext(ctx, session, session.Wait)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 
-	return output, err
+	return buf.String(), err
 }
 
 // RunRemoteSecure: Komutu çalıştırır, sudo gerekirse şifreyi pipe ile verir.
@@ -160,7 +263,7 @@ func (t *SSHTransport) RunRemoteSecure(ctx context.Context, cmdStr string, sudoP
 	if t.config.BecomeMethod == "sudo" && sudoPassword != "" {
 		// -S: Stdin'den şifre oku
 		// -p '': Prompt gösterme
-		finalCmd = fmt.Sprintf("sudo -S -p '' %s", cmdStr)
+		finalCmd = sudoWrap(cmdStr)
 	}
 
 	stdin, err := session.StdinPipe()

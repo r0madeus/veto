@@ -8,8 +8,8 @@ import (
 
 	"github.com/pterm/pterm"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 )
 
 func init() {
@@ -79,6 +79,12 @@ func (r *GitAdapter) Validate(ctx *core.SystemContext) error {
 	}
 	if !utils.IsOneOf(r.State, "present", "absent") {
 		return fmt.Errorf("invalid state '%s': must be one of [present, absent]", r.State)
+	}
+	// A leading '-' would be parsed by git as an option, not a value.
+	for field, v := range map[string]string{"repo": r.Repo, "remote": r.Remote, "branch": r.Branch, "tag": r.Tag, "commit": r.Commit} {
+		if strings.HasPrefix(v, "-") {
+			return fmt.Errorf("invalid %s '%s': must not start with '-'", field, v)
+		}
 	}
 	return nil
 }
@@ -191,12 +197,13 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Klasör yoksa Clone
 	if _, err := ctx.FS.Stat(filepath.Join(r.Dest, ".git")); os.IsNotExist(err) {
 		// Clone argümanları
-		args := []string{"clone", r.Repo, r.Dest}
+		args := []string{"clone"}
 		if r.Branch != "" {
 			args = append(args, "-b", r.Branch)
 		}
+		args = append(args, "--", r.Repo, r.Dest)
 
-		fullCmd := "git " + strings.Join(args, " ")
+		fullCmd := "git " + utils.ShellJoin(args...)
 		out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 		if err != nil {
 			return core.Failure(err, fmt.Sprintf("Git clone failed: %s", out)), err
@@ -243,7 +250,7 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Eğer branch ise ve update isteniyorsa pull yap
 	if r.Update && r.Commit == "" && r.Tag == "" {
 		// git pull origin branch
-		fullCmd := fmt.Sprintf("git -C %s pull %s %s", r.Dest, r.Remote, r.Branch)
+		fullCmd := fmt.Sprintf("git -C %s pull %s %s", utils.ShellQuote(r.Dest), utils.ShellQuote(r.Remote), utils.ShellQuote(r.Branch))
 		out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 		if err != nil {
 			return core.Failure(err, fmt.Sprintf("Git pull failed: %s", out)), err
@@ -279,7 +286,7 @@ func (r *GitAdapter) isGitRepo(ctx *core.SystemContext, path string) bool {
 }
 
 func getRemoteURL(ctx *core.SystemContext, path, remote string) (string, error) {
-	fullCmd := fmt.Sprintf("git -C %s remote get-url %s", path, remote)
+	fullCmd := fmt.Sprintf("git -C %s remote get-url %s", utils.ShellQuote(path), utils.ShellQuote(remote))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
@@ -288,7 +295,7 @@ func getRemoteURL(ctx *core.SystemContext, path, remote string) (string, error) 
 }
 
 func getHeadSHA(ctx *core.SystemContext, path string) (string, error) {
-	fullCmd := fmt.Sprintf("git -C %s rev-parse HEAD", path)
+	fullCmd := fmt.Sprintf("git -C %s rev-parse HEAD", utils.ShellQuote(path))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
@@ -297,7 +304,7 @@ func getHeadSHA(ctx *core.SystemContext, path string) (string, error) {
 }
 
 func fetchRemote(ctx *core.SystemContext, path, remote string) error {
-	fullCmd := fmt.Sprintf("git -C %s fetch %s", path, remote)
+	fullCmd := fmt.Sprintf("git -C %s fetch %s", utils.ShellQuote(path), utils.ShellQuote(remote))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return fmt.Errorf("output: %s, error: %w", out, err)
@@ -306,7 +313,7 @@ func fetchRemote(ctx *core.SystemContext, path, remote string) error {
 }
 
 func getCurrentBranch(ctx *core.SystemContext, path string) (string, error) {
-	fullCmd := fmt.Sprintf("git -C %s rev-parse --abbrev-ref HEAD", path)
+	fullCmd := fmt.Sprintf("git -C %s rev-parse --abbrev-ref HEAD", utils.ShellQuote(path))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
@@ -315,7 +322,7 @@ func getCurrentBranch(ctx *core.SystemContext, path string) (string, error) {
 }
 
 func getRefSHA(ctx *core.SystemContext, path, ref string) (string, error) {
-	fullCmd := fmt.Sprintf("git -C %s rev-parse %s", path, ref)
+	fullCmd := fmt.Sprintf("git -C %s rev-parse %s", utils.ShellQuote(path), utils.ShellQuote(ref))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
@@ -324,7 +331,7 @@ func getRefSHA(ctx *core.SystemContext, path, ref string) (string, error) {
 }
 
 func checkout(ctx *core.SystemContext, path, target string) error {
-	fullCmd := fmt.Sprintf("git -C %s checkout %s", path, target)
+	fullCmd := fmt.Sprintf("git -C %s checkout %s", utils.ShellQuote(path), utils.ShellQuote(target))
 	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return fmt.Errorf("output: %s, error: %w", out, err)

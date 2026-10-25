@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/adapters/service"
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/adapters/service"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestCreateResourceWithParams(t *testing.T) {

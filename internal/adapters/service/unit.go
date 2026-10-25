@@ -2,10 +2,11 @@ package service
 
 import (
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func init() {
@@ -171,7 +172,7 @@ func (r *SystemdUnitAdapter) Apply(ctx *core.SystemContext) (core.Result, error)
 				return core.Failure(wErr, "Failed to write temp file"), wErr
 			}
 
-			cmd := fmt.Sprintf("sudo mv %s %s && sudo chown root:root %s && sudo chmod 644 %s", tmpPath, r.Path, r.Path, r.Path)
+			cmd := fmt.Sprintf("sudo mv %s %s && sudo chown root:root %s && sudo chmod 644 %s", utils.ShellQuote(tmpPath), utils.ShellQuote(r.Path), utils.ShellQuote(r.Path), utils.ShellQuote(r.Path))
 			if _, eErr := ctx.Transport.Execute(ctx.Context, cmd); eErr != nil {
 				return core.Failure(eErr, "Failed to move unit file via sudo"), eErr
 			}
@@ -194,8 +195,8 @@ func (r *SystemdUnitAdapter) Apply(ctx *core.SystemContext) (core.Result, error)
 func (r *SystemdUnitAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "created" {
 		// Remove file
-		ctx.Transport.Execute(ctx.Context, "rm "+r.Path) // Try sudo rm if needed
-		ctx.Transport.Execute(ctx.Context, "systemctl daemon-reload")
+		_, _ = ctx.Transport.Execute(ctx.Context, "rm "+utils.ShellQuote(r.Path)) // Try sudo rm if needed
+		_, _ = ctx.Transport.Execute(ctx.Context, "systemctl daemon-reload")
 	}
 	return nil
 }

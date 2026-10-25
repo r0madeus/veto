@@ -1,10 +1,11 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type ServiceAdapter struct {
@@ -153,27 +154,28 @@ func (r *ServiceAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *ServiceAdapter) Revert(ctx *core.SystemContext) error {
 	// Revert order: reverse of apply
+	var errs []error
 	for i := len(r.ActionPerformed) - 1; i >= 0; i-- {
 		action := r.ActionPerformed[i]
 		switch action {
 		case "started":
 			// Stop it
-			r.Manager.Stop(ctx, r.Name)
+			errs = append(errs, r.Manager.Stop(ctx, r.Name))
 		case "stopped":
 			// Start it (might be risky if it was broken before, but revert means undo)
-			r.Manager.Start(ctx, r.Name)
+			errs = append(errs, r.Manager.Start(ctx, r.Name))
 		case "restarted":
 			// Can't really "un-restart". Maybe restart again? Or ignore.
 			// Ignoring is safer.
 		case "enabled":
 			// Disable it
-			r.Manager.Disable(ctx, r.Name)
+			errs = append(errs, r.Manager.Disable(ctx, r.Name))
 		case "disabled":
 			// Enable it
-			r.Manager.Enable(ctx, r.Name)
+			errs = append(errs, r.Manager.Enable(ctx, r.Name))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // ListInstalled satisfies the core.Lister interface for Prune operations.

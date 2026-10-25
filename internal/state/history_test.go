@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/types"
 )
 
 // MockRealFS implements state.FileSystem for tests using real os calls
@@ -69,5 +69,31 @@ func TestHistoryManager(t *testing.T) {
 	}
 	if len(txs[0].Changes) != 1 {
 		t.Error("Transaction changes mismatch")
+	}
+}
+
+func TestAddTransaction_UpsertsByID(t *testing.T) {
+	dir := t.TempDir()
+	mgr, err := NewManager(filepath.Join(dir, "state.json"), &MockRealFS{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mgr.AddTransaction(types.Transaction{ID: "tx1", Status: "success"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mgr.AddTransaction(types.Transaction{ID: "tx2", Status: "success"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mgr.AddTransaction(types.Transaction{ID: "tx1", Status: "reverted"}); err != nil {
+		t.Fatal(err)
+	}
+
+	txs := mgr.GetTransactions()
+	if len(txs) != 2 {
+		t.Fatalf("expected 2 transactions, got %d", len(txs))
+	}
+	if txs[0].ID != "tx1" || txs[0].Status != "reverted" {
+		t.Errorf("tx1 should be updated in place, got %+v", txs[0])
 	}
 }

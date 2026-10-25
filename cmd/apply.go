@@ -9,17 +9,16 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/melih-ucgun/veto/internal/adapters/snapshot"
-	"github.com/melih-ucgun/veto/internal/config"
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/fleet" // New import
-	"github.com/melih-ucgun/veto/internal/hub"
-	"github.com/melih-ucgun/veto/internal/inventory" // New import
-	"github.com/melih-ucgun/veto/internal/resource"
-	"github.com/melih-ucgun/veto/internal/state"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
+	"github.com/r0madeus/veto/internal/adapters/snapshot"
+	"github.com/r0madeus/veto/internal/config"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/fleet" // New import
+	"github.com/r0madeus/veto/internal/hub"
+	"github.com/r0madeus/veto/internal/resource"
+	"github.com/r0madeus/veto/internal/state"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 var dryRun bool
@@ -232,7 +231,7 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 			WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
 			Println("FLEET MODE ACTIVATED")
 
-		inv, err := inventory.LoadInventory(invFile)
+		inv, err := loadInventory(invFile)
 		if err != nil {
 			return fmt.Errorf("failed to load inventory: %w", err)
 		}
@@ -258,22 +257,20 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 	eng := core.NewEngine(ctx, stateMgr)
 	finalError := error(nil)
 
-	// Execute Layers
-	for i, layer := range layers {
-		// Layer Header
+	// Execute Layers (one transaction; a failure rolls back every layer)
+	eng.OnLayerStart = func(i, total int, layer []core.ConfigItem) func(error) {
 		pterm.DefaultSection.Printf("Phase %d: Processing %d resources", i+1, len(layer))
-
-		// Spinner for execution (Simple main spinner)
 		spinnerExec, _ := pterm.DefaultSpinner.Start("Executing layer...")
-
-		if err := eng.RunParallel(layer, createFn); err != nil {
-			spinnerExec.Fail(fmt.Sprintf("Layer %d failed", i+1))
-			pterm.Error.Printf("Layer %d completed with errors: %v\n", i+1, err)
-			finalError = err // Keep track of error
-			break            // Stop processing layers on failure
+		return func(err error) {
+			if err != nil {
+				spinnerExec.Fail(fmt.Sprintf("Layer %d failed", i+1))
+				pterm.Error.Printf("Layer %d completed with errors: %v\n", i+1, err)
+				return
+			}
+			spinnerExec.Success(fmt.Sprintf("Layer %d complete", i+1))
 		}
-		spinnerExec.Success(fmt.Sprintf("Layer %d complete", i+1))
 	}
+	finalError = eng.RunLayers(layers, createFn)
 
 	// Post Snapshot Logic
 	if preSnapID != "" && snapMgr != nil {

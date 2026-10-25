@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type PodmanRuntime struct {
@@ -23,7 +24,7 @@ func (r *PodmanRuntime) Name() string {
 }
 
 func (r *PodmanRuntime) runCmd(ctx context.Context, args ...string) (string, error) {
-	cmdStr := "podman " + strings.Join(args, " ")
+	cmdStr := "podman " + utils.ShellJoin(args...)
 	return r.ctx.Transport.Execute(ctx, cmdStr)
 }
 

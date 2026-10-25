@@ -1,7 +1,7 @@
 package bundle
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // Adapter implements the resource.Adapter interface for logical bundles

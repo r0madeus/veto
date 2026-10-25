@@ -1,7 +1,7 @@
 package identity
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // IdentityProvider defines the interface for OS-specific user/group operations.

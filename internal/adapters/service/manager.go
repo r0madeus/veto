@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // ServiceManager, init sistemleri (systemd, openrc, vb.) için ortak arayüzdür.

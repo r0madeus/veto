@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestFirewall_Check_Exists(t *testing.T) {

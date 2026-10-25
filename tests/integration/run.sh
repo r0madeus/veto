@@ -51,7 +51,9 @@ fi
 # ==========================================
 echo -n "Test 2: Idempotency (Run again)... "
 
-if veto apply success.yaml | grep -q "already in desired state"; then
+# The "no change" message is logged at debug level (-vv); logs go to stderr.
+OUTPUT=$(veto -vv apply success.yaml 2>&1)
+if echo "$OUTPUT" | grep -q "already in desired state"; then
     echo -e "${GREEN}PASS${NC}"
 else
     echo -e "${RED}FAIL${NC}"
@@ -78,7 +80,8 @@ resources:
     state: present
 EOF
 
-if veto apply user.yaml | grep -q "User created"; then
+OUTPUT=$(veto apply user.yaml 2>&1)
+if echo "$OUTPUT" | grep -q "User created"; then
     # Verify with system command
     if id veto_test > /dev/null 2>&1; then
         echo -e "${GREEN}PASS${NC}"

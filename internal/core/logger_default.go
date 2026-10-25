@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"io"
 	"log/slog"
 
@@ -10,31 +9,35 @@ import (
 
 type DefaultLogger struct {
 	level   LogLevel
+	slogLvl *slog.LevelVar // shared with handler so SetLevel takes effect
 	handler *slog.Logger
 	output  io.Writer
 }
 
-func NewDefaultLogger(output io.Writer, level LogLevel) *DefaultLogger {
-	var slogLevel slog.Level
+func toSlogLevel(level LogLevel) slog.Level {
 	switch level {
 	case LevelTrace, LevelDebug:
-		slogLevel = slog.LevelDebug
-	case LevelInfo:
-		slogLevel = slog.LevelInfo
+		return slog.LevelDebug
 	case LevelWarn:
-		slogLevel = slog.LevelWarn
+		return slog.LevelWarn
 	case LevelError:
-		slogLevel = slog.LevelError
+		return slog.LevelError
 	default:
-		slogLevel = slog.LevelInfo
+		return slog.LevelInfo
 	}
+}
+
+func NewDefaultLogger(output io.Writer, level LogLevel) *DefaultLogger {
+	lvl := &slog.LevelVar{}
+	lvl.Set(toSlogLevel(level))
 
 	handler := slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{
-		Level: slogLevel,
+		Level: lvl,
 	}))
 
 	return &DefaultLogger{
 		level:   level,
+		slogLvl: lvl,
 		handler: handler,
 		output:  output,
 	}
@@ -42,14 +45,14 @@ func NewDefaultLogger(output io.Writer, level LogLevel) *DefaultLogger {
 
 func (l *DefaultLogger) Trace(msg string, args ...any) {
 	if l.level <= LevelTrace {
-		pterm.Debug.WithWriter(l.output).Println("TRACE: " + msg)
+		pterm.Debug.WithDebugger(false).WithWriter(l.output).Println("TRACE: " + msg)
 		l.handler.Debug(msg, args...)
 	}
 }
 
 func (l *DefaultLogger) Debug(msg string, args ...any) {
 	if l.level <= LevelDebug {
-		pterm.Debug.WithWriter(l.output).Println(msg)
+		pterm.Debug.WithDebugger(false).WithWriter(l.output).Println(msg)
 		l.handler.Debug(msg, args...)
 	}
 }
@@ -78,6 +81,7 @@ func (l *DefaultLogger) Error(msg string, args ...any) {
 func (l *DefaultLogger) With(args ...any) Logger {
 	return &DefaultLogger{
 		level:   l.level,
+		slogLvl: l.slogLvl,
 		handler: l.handler.With(args...),
 		output:  l.output,
 	}
@@ -85,7 +89,5 @@ func (l *DefaultLogger) With(args ...any) Logger {
 
 func (l *DefaultLogger) SetLevel(level LogLevel) {
 	l.level = level
+	l.slogLvl.Set(toSlogLevel(level))
 }
-
-// Dummy context to satisfy slogans
-var ctx = context.Background()

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/types"
 )
 
 // FileSystem defines minimum operations required for storage.
@@ -37,18 +37,8 @@ func NewManager(path string, fs FileSystem) (*Manager, error) {
 	}
 
 	// Load existing file if present
-	if err := mgr.Load(); err != nil {
-		// If file doesn't exist, it's fine, we'll create it.
-		// Since we use abstracted FS, we check for specific error or just ignore 'not exist' logic if hidden.
-		// os.IsNotExist works with OS errors, but FS implementation should return compatible errors.
-		// For now we assume the error returned by ReadFile satisfies os.IsNotExist or we check message.
-		if !os.IsNotExist(err) && err.Error() != "file does not exist" {
-			// Some Sftp implementations might return generic error.
-			// But core.Transport.ReadFile usually wraps/returns underlying error.
-			// Let's assume ignore for now if it fails on load, start fresh.
-			// Ideally investigate error type.
-		}
-	}
+	// A missing (or unreadable) state file is not fatal: start with a fresh state.
+	_ = mgr.Load()
 
 	return mgr, nil
 }

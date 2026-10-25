@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/melih-ucgun/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/consts"
 )
 
 // BackupManager handles creating copies of files before modification

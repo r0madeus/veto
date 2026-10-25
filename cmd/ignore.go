@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/melih-ucgun/veto/internal/config"
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/hub"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/config"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/hub"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -90,8 +90,11 @@ var ignoreCmd = &cobra.Command{
 
 						// Save
 						data, _ := yaml.Marshal(currentConfig)
-						os.WriteFile(configPath, data, 0644)
-						pterm.Success.Println("Configuration updated.")
+						if err := os.WriteFile(configPath, data, 0644); err != nil {
+							pterm.Error.Printf("Failed to save configuration: %v\n", err)
+						} else {
+							pterm.Success.Println("Configuration updated.")
+						}
 
 						// Reload config to reflect changes for next pattern
 						configLoaded = true // redundant but clear

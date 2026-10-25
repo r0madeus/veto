@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 )
 
 func init() {
@@ -85,10 +85,10 @@ func (a *IconAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	tmpExtract := fmt.Sprintf("/tmp/veto_extract_icon_%s", a.Name)
 
 	cmds := []string{
-		fmt.Sprintf("mkdir -p %s", tmpExtract),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(tmpExtract)),
 		// Unzip to tmp
-		fmt.Sprintf("unzip -o %s -d %s", tmpRemote, tmpExtract),
-		fmt.Sprintf("mkdir -p %s", filepath.Dir(dest)), // Ensure parent works
+		fmt.Sprintf("unzip -o %s -d %s", utils.ShellQuote(tmpRemote), utils.ShellQuote(tmpExtract)),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(filepath.Dir(dest))), // Ensure parent works
 		// Often icon themes extract to a subfolder name.
 		// Usually name matches a.Name.
 		// If structure is zip/Papirus/... we need to move Papirus to dest.
@@ -104,8 +104,8 @@ func (a *IconAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		// If zip has root folder, we might end up with dest/Root/...
 		// This is acceptable if user knows what they are doing or we strip component.
 		// For now simple unzip.
-		fmt.Sprintf("mkdir -p %s", dest),
-		fmt.Sprintf("cp -r %s/* %s/", tmpExtract, dest), // This flattens one level if zip has no root? No, `cp -r src/* dest/` puts `src/A` into `dest/A`.
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(dest)),
+		fmt.Sprintf("cp -r %s/* %s/", utils.ShellQuote(tmpExtract), utils.ShellQuote(dest)), // This flattens one level if zip has no root? No, `cp -r src/* dest/` puts `src/A` into `dest/A`.
 		// If zip has `Theme/index.theme`, then `tmpExtract/Theme/index.theme`.
 		// `cp -r tmpExtract/* dest/` -> `dest/Theme/index.theme`.
 		// BUT `dest` IS the theme name usually. e.g. `~/.icons/Papirus`.
@@ -114,7 +114,7 @@ func (a *IconAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		// If zip contains `Papirus`, we extract to `~/.icons`.
 		// BUT `a.Name` is arbitrary in Veto resource.
 
-		fmt.Sprintf("rm -rf %s %s", tmpExtract, tmpRemote),
+		fmt.Sprintf("rm -rf %s %s", utils.ShellQuote(tmpExtract), utils.ShellQuote(tmpRemote)),
 	}
 
 	// Refined copy command:
@@ -153,7 +153,7 @@ func (a *IconAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// 4. Update Cache
 	if !ctx.DryRun {
 		// Ignore error if gtk-update-icon-cache is missing
-		ctx.Transport.Execute(ctx.Context, "gtk-update-icon-cache -f -t "+dest)
+		_, _ = ctx.Transport.Execute(ctx.Context, "gtk-update-icon-cache -f -t "+utils.ShellQuote(dest))
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Icon theme %s installed", a.Name)), nil

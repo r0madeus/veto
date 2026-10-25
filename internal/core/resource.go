@@ -15,7 +15,14 @@ type Differ interface {
 	Diff(ctx *SystemContext) (string, error)
 }
 
-// Revertable is the interface that revertible resources must implement.
+// Reverter is implemented by every resource that can undo what Apply did.
+// The engine uses it to roll back a failed run.
+type Reverter interface {
+	Revert(ctx *SystemContext) error
+}
+
+// Revertable additionally supports reverting a recorded action by name; it is
+// what `veto rollback` needs to undo a past transaction.
 type Revertable interface {
 	Revert(ctx *SystemContext) error
 	RevertAction(action string, ctx *SystemContext) error

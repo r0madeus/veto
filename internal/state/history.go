@@ -3,13 +3,25 @@ package state
 import (
 	"fmt"
 
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/types"
 )
 
-// AddTransaction appends a new transaction to history and saves state.
+// AddTransaction records a transaction in history and saves state. A
+// transaction with an ID that is already present replaces that entry, so a
+// run spanning several layers can update its record as it progresses.
 func (m *Manager) AddTransaction(tx types.Transaction) error {
 	m.mu.Lock()
-	m.Current.History = append(m.Current.History, tx)
+	replaced := false
+	for i := range m.Current.History {
+		if m.Current.History[i].ID == tx.ID {
+			m.Current.History[i] = tx
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		m.Current.History = append(m.Current.History, tx)
+	}
 	m.mu.Unlock()
 
 	return m.Save()

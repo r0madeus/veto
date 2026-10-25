@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/consts"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/consts"
 )
 
 // HubClient interacts with the Veto Registry via Git

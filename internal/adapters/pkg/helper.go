@@ -2,9 +2,10 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func init() {
@@ -17,11 +18,6 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 	pkgName, _ := params["name"].(string)
 	if pkgName == "" {
 		pkgName = name
-	}
-
-	state, _ := params["state"].(string)
-	if state == "" {
-		state = "present"
 	}
 
 	switch ctx.Distro {
@@ -56,7 +52,7 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 func isInstalled(ctx *core.SystemContext, checkCmd string, args ...string) bool {
 	fullCmd := checkCmd
 	if len(args) > 0 {
-		fullCmd += " " + strings.Join(args, " ")
+		fullCmd += " " + utils.ShellJoin(args...)
 	}
 
 	_, err := ctx.Transport.Execute(ctx.Context, fullCmd)
@@ -67,7 +63,7 @@ func isInstalled(ctx *core.SystemContext, checkCmd string, args ...string) bool 
 func runCommand(ctx *core.SystemContext, name string, args ...string) (string, error) {
 	fullCmd := name
 	if len(args) > 0 {
-		fullCmd += " " + strings.Join(args, " ")
+		fullCmd += " " + utils.ShellJoin(args...)
 	}
 	return ctx.Transport.Execute(ctx.Context, fullCmd)
 }

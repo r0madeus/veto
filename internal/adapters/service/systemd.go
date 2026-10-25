@@ -2,9 +2,10 @@ package service
 
 import (
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type SystemdManager struct{}
@@ -18,13 +19,13 @@ func (s *SystemdManager) Name() string {
 }
 
 func (s *SystemdManager) IsEnabled(ctx *core.SystemContext, service string) (bool, error) {
-	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-enabled "+service) // Error is expected if disabled
+	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-enabled "+utils.ShellQuote(service)) // Error is expected if disabled
 	status := strings.TrimSpace(string(out))
 	return status == "enabled", nil
 }
 
 func (s *SystemdManager) IsActive(ctx *core.SystemContext, service string) (bool, error) {
-	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-active "+service) // Error is expected if inactive
+	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-active "+utils.ShellQuote(service)) // Error is expected if inactive
 	status := strings.TrimSpace(string(out))
 	return status == "active", nil
 }
@@ -54,7 +55,7 @@ func (s *SystemdManager) Reload(ctx *core.SystemContext, service string) error {
 }
 
 func (s *SystemdManager) run(ctx *core.SystemContext, args ...string) error {
-	fullCmd := "systemctl " + strings.Join(args, " ")
+	fullCmd := "systemctl " + utils.ShellJoin(args...)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("systemctl %s failed: %s: %w", strings.Join(args, " "), out, err)
 	}

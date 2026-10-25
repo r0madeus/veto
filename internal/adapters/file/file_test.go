@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // MockBackupManager implements core.BackupManager interface
@@ -102,7 +102,9 @@ func TestFileAdapter_RevertAction(t *testing.T) {
 	// or mock os.Remove if we want pure unit test.
 	// Since adapter uses os.Remove directly, integration style is easier.
 	tmpFile := "/tmp/veto_test_delete_me.txt"
-	os.WriteFile(tmpFile, []byte("content"), 0644)
+	if err := os.WriteFile(tmpFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	res2 := NewFileAdapter(tmpFile, nil)
 	adapter2, ok := res2.(*FileAdapter)
 	if !ok {

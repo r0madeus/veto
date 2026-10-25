@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/inventory"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/inventory"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 // Executor handles ad-hoc command execution across a fleet
@@ -74,11 +74,15 @@ func (e *Executor) Run(command string) error {
 func (e *Executor) runOnHost(h inventory.Host, cmd string) error {
 	// 1. Prepare Transport Config
 	cfgHost := transport.HostConfig{
-		Name:       h.Name,
-		Address:    h.Address,
-		User:       h.User,
-		Port:       h.Port,
-		SSHKeyPath: h.KeyPath,
+		Name:        h.Name,
+		Address:     h.Address,
+		User:        h.User,
+		Port:        h.Port,
+		SSHKeyPath:  h.KeyPath,
+		SSHPassword: h.Vars["ansible_ssh_pass"],
+
+		KnownHostsPath:        h.KnownHosts,
+		InsecureIgnoreHostKey: h.InsecureHostKey,
 	}
 
 	if e.useSudo {

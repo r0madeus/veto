@@ -1,11 +1,14 @@
 package git
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestGitAdapter_Check_Clone(t *testing.T) {
@@ -41,7 +44,9 @@ func TestGitAdapter_Check_Clone(t *testing.T) {
 func TestGitAdapter_Check_UpToDate(t *testing.T) {
 	tmpDir := t.TempDir()
 	repoPath := filepath.Join(tmpDir, "existing-repo")
-	os.MkdirAll(filepath.Join(repoPath, ".git"), 0755) // Simulate git repo
+	if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0755); err != nil { // Simulate git repo
+		t.Fatal(err)
+	}
 
 	mockTransport := core.NewMockTransport()
 	ctx := &core.SystemContext{
@@ -81,7 +86,7 @@ func TestGitAdapter_Apply_Clone(t *testing.T) {
 	repoPath := filepath.Join(tmpDir, "new-repo")
 
 	// Mock Clone
-	expectedCmd := "git clone https://github.com/example/repo " + repoPath + " -b main"
+	expectedCmd := "git clone -b main -- https://github.com/example/repo " + repoPath
 	mockTransport.OnExecute(expectedCmd, "", nil)
 
 	params := map[string]interface{}{
@@ -102,5 +107,35 @@ func TestGitAdapter_Apply_Clone(t *testing.T) {
 
 	if !mockTransport.AssertCalled("clone") {
 		t.Fatal("Git clone was not called")
+	}
+}
+
+func TestGitHelpers_QuoteArguments(t *testing.T) {
+	mock := core.NewMockTransport()
+	ctx := &core.SystemContext{Transport: mock, Context: context.Background()}
+
+	_, _ = getRemoteURL(ctx, "/tmp/my repo", "origin; id")
+	_, _ = getRefSHA(ctx, "/tmp/repo", "$(touch /tmp/pwned)")
+	_ = checkout(ctx, "/tmp/repo", "main && id")
+
+	assert.Equal(t, "git -C '/tmp/my repo' remote get-url 'origin; id'", mock.Calls[0])
+	assert.Equal(t, "git -C /tmp/repo rev-parse '$(touch /tmp/pwned)'", mock.Calls[1])
+	assert.Equal(t, "git -C /tmp/repo checkout 'main && id'", mock.Calls[2])
+}
+
+func TestGitAdapter_Validate_RejectsOptionLikeValues(t *testing.T) {
+	ctx := &core.SystemContext{}
+	for _, params := range []map[string]interface{}{
+		{"repo": "--upload-pack=evil", "dest": "/tmp/x"},
+		{"repo": "https://example.com/r.git", "dest": "/tmp/x", "branch": "-b"},
+		{"repo": "https://example.com/r.git", "dest": "/tmp/x", "remote": "--force"},
+	} {
+		if err := NewGitAdapter("g", params).Validate(ctx); err == nil {
+			t.Errorf("expected validation error for %v", params)
+		}
+	}
+	ok := NewGitAdapter("g", map[string]interface{}{"repo": "https://example.com/r.git", "dest": "/tmp/x"})
+	if err := ok.Validate(ctx); err != nil {
+		t.Errorf("valid params rejected: %v", err)
 	}
 }

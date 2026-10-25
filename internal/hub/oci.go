@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 )
 
 const (

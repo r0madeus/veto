@@ -4,8 +4,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pkg/sftp"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // SFTPFS implements core.FileSystem over an SFTP connection

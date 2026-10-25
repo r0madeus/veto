@@ -10,34 +10,19 @@ permissions:
 
 jobs:
   test:
-    name: Test on ${{ matrix.container }}
+    name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        container: 
-          - "ubuntu:latest"
-          - "fedora:latest"
-          - "archlinux:latest"
-    container:
-      image: ${{ matrix.container }}
     steps:
-      - name: Install Go (Custom for Containers)
-        run: |
-          # Install Go and Git based on the distro
-          if [ -f /etc/debian_version ]; then
-            apt-get update && apt-get install -y golang git
-          elif [ -f /etc/fedora-release ]; then
-            dnf install -y golang git
-          elif [ -f /etc/arch-release ]; then
-            pacman -Syu --noconfirm go git
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
       - name: Run Tests
-        run: |
-          go test ./... -v
+        run: go test ./...
 
   release:
     name: Release with GoReleaser
@@ -52,7 +37,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: '1.26'
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6

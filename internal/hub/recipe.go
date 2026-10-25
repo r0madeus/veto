@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/consts"
 )
 
 type RecipeManager struct {

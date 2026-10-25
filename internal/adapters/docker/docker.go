@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type DockerRuntime struct {
@@ -23,7 +24,7 @@ func (r *DockerRuntime) Name() string {
 }
 
 func (r *DockerRuntime) runCmd(ctx context.Context, args ...string) (string, error) {
-	cmdStr := "docker " + strings.Join(args, " ")
+	cmdStr := "docker " + utils.ShellJoin(args...)
 	return r.ctx.Transport.Execute(ctx, cmdStr)
 }
 

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func init() {
@@ -144,7 +144,9 @@ func (r *ArchiveAdapter) unzip(ctx *core.SystemContext, src, dest string) error 
 		}
 
 		if f.FileInfo().IsDir() {
-			ctx.FS.MkdirAll(fpath, os.ModePerm)
+			if err := ctx.FS.MkdirAll(fpath, os.ModePerm); err != nil {
+				return err
+			}
 			continue
 		}
 
@@ -172,7 +174,9 @@ func (r *ArchiveAdapter) unzip(ctx *core.SystemContext, src, dest string) error 
 		}
 
 		// Set permissions
-		ctx.FS.Chmod(fpath, f.Mode())
+		if err := ctx.FS.Chmod(fpath, f.Mode()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -214,7 +218,7 @@ func (r *ArchiveAdapter) untar(ctx *core.SystemContext, src, dest string) error 
 			if err := ctx.FS.MkdirAll(target, 0755); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if err := ctx.FS.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return err
 			}
@@ -230,7 +234,9 @@ func (r *ArchiveAdapter) untar(ctx *core.SystemContext, src, dest string) error 
 			}
 
 			// Set permissions
-			ctx.FS.Chmod(target, os.FileMode(header.Mode))
+			if err := ctx.FS.Chmod(target, os.FileMode(header.Mode)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
