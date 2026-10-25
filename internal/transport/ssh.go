@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,40 @@ func hostKeyCallback(host HostConfig) (ssh.HostKeyCallback, error) {
 // sudo, reading the password from stdin without a prompt.
 func sudoWrap(cmd string) string {
 	return "sudo -S -p '' sh -c " + utils.ShellQuote(cmd)
+}
+
+// dialSSH connects honoring ctx cancellation and bounds the handshake by the
+// config timeout (ssh.Dial only bounds the TCP connect).
+func dialSSH(ctx context.Context, addr string, cfg *ssh.ClientConfig) (*ssh.Client, error) {
+	dialer := net.Dialer{Timeout: cfg.Timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Timeout > 0 {
+		_ = conn.SetDeadline(time.Now().Add(cfg.Timeout))
+	}
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, cfg)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return ssh.NewClient(c, chans, reqs), nil
+}
+
+// waitContext runs fn and returns its error, or closes the session and returns
+// when ctx is cancelled first. The output of fn must not be read after a cancel.
+func waitContext(ctx context.Context, session *ssh.Session, fn func() error) error {
+	done := make(chan error, 1)
+	go func() { done <- fn() }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		session.Close()
+		return ctx.Err()
+	}
 }
 
 type HostConfig struct {
@@ -116,7 +151,7 @@ func NewSSHTransport(ctx context.Context, host HostConfig) (*SSHTransport, error
 	}
 
 	addr := fmt.Sprintf("%s:%d", host.Address, host.Port)
-	client, err := ssh.Dial("tcp", addr, sshConfig)
+	client, err := dialSSH(ctx, addr, sshConfig)
 	if err != nil {
 		// DÜZELTME: host.HostName yerine host.Name kullanıldı
 		return nil, fmt.Errorf("ssh bağlantı hatası (%s): %w", host.Name, err)
@@ -163,7 +198,15 @@ func (t *SSHTransport) Execute(ctx context.Context, cmd string) (string, error) 
 	}
 	defer session.Close()
 
-	out, err := session.CombinedOutput(cmd)
+	var out []byte
+	err = waitContext(ctx, session, func() error {
+		var runErr error
+		out, runErr = session.CombinedOutput(cmd)
+		return runErr
+	})
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	return string(out), err
 }
 
@@ -198,10 +241,12 @@ func (t *SSHTransport) runRemoteSecureCaptured(ctx context.Context, cmdStr strin
 		}
 	}()
 
-	err = session.Wait()
-	output := buf.String()
+	err = waitContext(ctx, session, session.Wait)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 
-	return output, err
+	return buf.String(), err
 }
 
 // RunRemoteSecure: Komutu çalıştırır, sudo gerekirse şifreyi pipe ile verir.

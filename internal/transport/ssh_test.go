@@ -104,3 +104,38 @@ func TestSudoWrap_CoversWholeCommandLine(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
+
+func TestDialSSH_HandshakeIsBoundedByTimeout(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() { // accept and stay silent: the SSH handshake can never finish
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+		}
+	}()
+
+	cfg := &ssh.ClientConfig{User: "u", HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: 300 * time.Millisecond}
+	start := time.Now()
+	if _, err := dialSSH(context.Background(), ln.Addr().String(), cfg); err == nil {
+		t.Fatal("expected handshake failure")
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("handshake not bounded by timeout: %v", time.Since(start))
+	}
+}
+
+func TestDialSSH_HonorsCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cfg := &ssh.ClientConfig{User: "u", HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: time.Second}
+	if _, err := dialSSH(ctx, "127.0.0.1:1", cfg); err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}
