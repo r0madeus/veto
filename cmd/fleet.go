@@ -87,6 +87,9 @@ var factsCmd = &cobra.Command{
 					SSHKeyPath:     h.KeyPath,
 					BecomeMethod:   "sudo",
 					BecomePassword: h.Vars["ansible_become_password"],
+
+					KnownHostsPath:        h.KnownHosts,
+					InsecureIgnoreHostKey: h.InsecureHostKey,
 				}
 
 				// Create Transport

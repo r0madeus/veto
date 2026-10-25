@@ -3,3 +3,10 @@ hosts:
     connection: local
     address: 127.0.0.1
     user: melih
+
+  # SSH hosts are verified against ~/.ssh/known_hosts by default.
+  # - name: web1
+  #   address: 192.0.2.10
+  #   user: deploy
+  #   known_hosts: /path/to/known_hosts   # optional override
+  #   insecure_host_key: false            # true disables verification (not recommended)

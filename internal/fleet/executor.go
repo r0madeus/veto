@@ -79,6 +79,9 @@ func (e *Executor) runOnHost(h inventory.Host, cmd string) error {
 		User:       h.User,
 		Port:       h.Port,
 		SSHKeyPath: h.KeyPath,
+
+		KnownHostsPath:        h.KnownHosts,
+		InsecureIgnoreHostKey: h.InsecureHostKey,
 	}
 
 	if e.useSudo {

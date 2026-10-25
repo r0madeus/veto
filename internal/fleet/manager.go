@@ -73,6 +73,9 @@ func (f *FleetManager) ApplyConfig(layers [][]core.ConfigItem, concurrency int, 
 					SSHKeyPath:     h.KeyPath,
 					BecomeMethod:   h.Vars["ansible_become_method"],
 					BecomePassword: h.Vars["ansible_become_password"],
+
+					KnownHostsPath:        h.KnownHosts,
+					InsecureIgnoreHostKey: h.InsecureHostKey,
 				}
 				// Set timeout for connection
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
