@@ -1,6 +1,6 @@
 package snapshot
 
-import "github.com/melih-ucgun/veto/internal/core"
+import "github.com/r0madeus/veto/internal/core"
 
 // Provider defines the interface for snapshot tools
 type Provider interface {

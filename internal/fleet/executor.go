@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/inventory"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/inventory"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 // Executor handles ad-hoc command execution across a fleet

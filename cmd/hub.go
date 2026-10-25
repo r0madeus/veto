@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/hub"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/hub"
 	"github.com/spf13/cobra"
 )
 

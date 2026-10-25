@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestGitAdapter_Check_Clone(t *testing.T) {

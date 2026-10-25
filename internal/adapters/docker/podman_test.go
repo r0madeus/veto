@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func TestPodmanAdapter_Check_Running(t *testing.T) {

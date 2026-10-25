@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/state"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/state"
 )
 
 // TestRevert_Creation verifies that reverting a file creation deletes the file.

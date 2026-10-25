@@ -2,6 +2,6 @@ resources:
   - type: git
     name: veto-repo-test
     params:
-      repo: "https://github.com/melih-ucgun/veto.git"
+      repo: "https://github.com/r0madeus/veto.git"
       dest: "/tmp/veto-test-clone"
       branch: "main"

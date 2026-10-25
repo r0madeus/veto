@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/types"
 )
 
 // FileSystem defines minimum operations required for storage.

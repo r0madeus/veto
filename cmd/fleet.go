@@ -7,12 +7,12 @@ import (
 	"sync"
 	"text/tabwriter"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/fleet"
-	"github.com/melih-ucgun/veto/internal/inventory"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
 	atomic "github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/fleet"
+	"github.com/r0madeus/veto/internal/inventory"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 	"github.com/spf13/cobra"
 )
 
@@ -216,17 +216,17 @@ var execCmd = &cobra.Command{
 		// Since we are in 'cmd' package, and 'fleetCmd' var is here, we are good.
 		// But wait, 'internal/fleet' package name conflicts with 'fleetCmd' var name semantically?
 		// No, `fleet` package is imported as `fleet` (if we alias it or verify imports).
-		// Currently `cmd/fleet.go` imports `github.com/melih-ucgun/veto/internal/system` etc.
-		// I need to start using `github.com/melih-ucgun/veto/internal/fleet`.
+		// Currently `cmd/fleet.go` imports `github.com/r0madeus/veto/internal/system` etc.
+		// I need to start using `github.com/r0madeus/veto/internal/fleet`.
 		// But wait, `cmd/fleet.go` ALREADY imports `internal/fleet` (implied by file content I saw earlier? No wait, let's check).
-		// I saw earlier: `github.com/melih-ucgun/veto/internal/fleet` // New import needed maybe?
+		// I saw earlier: `github.com/r0madeus/veto/internal/fleet` // New import needed maybe?
 		// Previous `apply` command imported `fleet`. So it should be fine.
 
 		// However, I need to make sure I add the import if it's missing or use the existing alias.
 		// Let's rely on `goimports` behavior or manual check.
 		// Since I'm using `replace_file_content`, I should probably check imports first.
 		// `cmd/fleet.go` previously imported `internal/core`, `inventory`, `system`, `transport`.
-		// I need to ensure `github.com/melih-ucgun/veto/internal/fleet` is imported.
+		// I need to ensure `github.com/r0madeus/veto/internal/fleet` is imported.
 
 		exec := fleet.NewExecutor(inv.Hosts, concurrency, sudo)
 		if err := exec.Run(command); err != nil {

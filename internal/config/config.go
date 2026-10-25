@@ -8,11 +8,11 @@ import (
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/crypto"
-	"github.com/melih-ucgun/veto/internal/system"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/crypto"
+	"github.com/r0madeus/veto/internal/system"
 )
 
 // Config represents the root structure of veto.yaml.

@@ -1,4 +1,4 @@
-module github.com/melih-ucgun/veto
+module github.com/r0madeus/veto
 
 go 1.25.5
 

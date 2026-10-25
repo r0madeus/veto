@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/inventory"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/inventory"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 // FleetManager orchestrates operations across multiple hosts.

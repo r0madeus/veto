@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/inventory"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/inventory"
 )
 
 // ensureSudoPasswords checks if any host needs a sudo password and prompts the user if missing.

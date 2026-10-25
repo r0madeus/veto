@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // MockTransport simulates a transport layer for testing.

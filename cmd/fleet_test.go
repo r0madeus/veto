@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 	"github.com/stretchr/testify/assert"
 )
 

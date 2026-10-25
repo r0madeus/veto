@@ -1,11 +1,11 @@
 # 👑 Veto
 
-[![Test](https://github.com/melih-ucgun/veto/actions/workflows/test.yml/badge.svg)](https://github.com/melih-ucgun/veto/actions/workflows/test.yml)
-[![Lint](https://github.com/melih-ucgun/veto/actions/workflows/lint.yml/badge.svg)](https://github.com/melih-ucgun/veto/actions/workflows/lint.yml)
-[![Security Scan](https://github.com/melih-ucgun/veto/actions/workflows/security.yml/badge.svg)](https://github.com/melih-ucgun/veto/actions/workflows/security.yml)
-[![E2E Tests](https://github.com/melih-ucgun/veto/actions/workflows/e2e.yml/badge.svg)](https://github.com/melih-ucgun/veto/actions/workflows/e2e.yml)
-![Go Version](https://img.shields.io/github/go-mod/go-version/melih-ucgun/veto)
-[![License](https://img.shields.io/github/license/melih-ucgun/veto)](LICENSE)
+[![Test](https://github.com/r0madeus/veto/actions/workflows/test.yml/badge.svg)](https://github.com/r0madeus/veto/actions/workflows/test.yml)
+[![Lint](https://github.com/r0madeus/veto/actions/workflows/lint.yml/badge.svg)](https://github.com/r0madeus/veto/actions/workflows/lint.yml)
+[![Security Scan](https://github.com/r0madeus/veto/actions/workflows/security.yml/badge.svg)](https://github.com/r0madeus/veto/actions/workflows/security.yml)
+[![E2E Tests](https://github.com/r0madeus/veto/actions/workflows/e2e.yml/badge.svg)](https://github.com/r0madeus/veto/actions/workflows/e2e.yml)
+![Go Version](https://img.shields.io/github/go-mod/go-version/r0madeus/veto)
+[![License](https://img.shields.io/github/license/r0madeus/veto)](LICENSE)
 
 > **The Sovereign System Orchestrator**
 > _"Rule your system through declarative architecture."_

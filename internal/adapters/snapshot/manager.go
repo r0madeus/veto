@@ -1,8 +1,8 @@
 package snapshot
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // Manager handles the selection and execution of snapshot providers

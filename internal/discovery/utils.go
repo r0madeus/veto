@@ -3,10 +3,10 @@ package discovery
 import (
 	"bufio"
 	"bytes"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func isCommandAvailable(ctx *core.SystemContext, name string) bool {

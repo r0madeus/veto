@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/types"
 )
 
 // MockTransport implements core.Transport

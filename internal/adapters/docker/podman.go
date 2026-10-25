@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type PodmanRuntime struct {

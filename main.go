@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/melih-ucgun/veto/cmd"
+	"github.com/r0madeus/veto/cmd"
 )
 
 func main() {

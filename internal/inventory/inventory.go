@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/melih-ucgun/veto/internal/crypto"
+	"github.com/r0madeus/veto/internal/crypto"
 )
 
 // Inventory represents the structure of the inventory file.

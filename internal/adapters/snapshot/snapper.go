@@ -2,11 +2,11 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // Snapper manages integration with the snapper tool

@@ -17,7 +17,7 @@ const (
 	HubIndexDir       = "index"
 	RecipesDirName    = "recipes"
 	FilesDirName      = "files"
-	DefaultHubRepo    = "https://github.com/melih-ucgun/veto-recipes.git"
+	DefaultHubRepo    = "https://github.com/r0madeus/veto-recipes.git"
 )
 
 // GetVetoDir returns the root directory name for Veto configuration

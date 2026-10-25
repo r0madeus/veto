@@ -3,14 +3,14 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/resource"
-	"github.com/melih-ucgun/veto/internal/state"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
-	"github.com/melih-ucgun/veto/internal/types"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/resource"
+	"github.com/r0madeus/veto/internal/state"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
+	"github.com/r0madeus/veto/internal/types"
 	"github.com/spf13/cobra"
 )
 

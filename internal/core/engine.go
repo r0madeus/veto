@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pterm/pterm"
 
-	"github.com/melih-ucgun/veto/internal/state"
-	"github.com/melih-ucgun/veto/internal/types"
+	"github.com/r0madeus/veto/internal/state"
+	"github.com/r0madeus/veto/internal/types"
 )
 
 // StateUpdater interface allows Engine to be independent of the state package.

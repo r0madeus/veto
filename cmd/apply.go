@@ -9,16 +9,16 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/melih-ucgun/veto/internal/adapters/snapshot"
-	"github.com/melih-ucgun/veto/internal/config"
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/fleet" // New import
-	"github.com/melih-ucgun/veto/internal/hub"
-	"github.com/melih-ucgun/veto/internal/resource"
-	"github.com/melih-ucgun/veto/internal/state"
-	"github.com/melih-ucgun/veto/internal/system"
-	"github.com/melih-ucgun/veto/internal/transport"
+	"github.com/r0madeus/veto/internal/adapters/snapshot"
+	"github.com/r0madeus/veto/internal/config"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/fleet" // New import
+	"github.com/r0madeus/veto/internal/hub"
+	"github.com/r0madeus/veto/internal/resource"
+	"github.com/r0madeus/veto/internal/state"
+	"github.com/r0madeus/veto/internal/system"
+	"github.com/r0madeus/veto/internal/transport"
 )
 
 var dryRun bool

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/utils"
 	"github.com/pkg/sftp"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/utils"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )

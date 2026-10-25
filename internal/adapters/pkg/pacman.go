@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 // PacmanAdapter, Arch Linux pacman paket yöneticisi için adaptör.

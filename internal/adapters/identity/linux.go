@@ -2,11 +2,11 @@ package identity
 
 import (
 	"fmt"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 	"strconv"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 type LinuxIdentityProvider struct{}

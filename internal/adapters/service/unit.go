@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
-	"github.com/melih-ucgun/veto/internal/utils"
+	"github.com/r0madeus/veto/internal/utils"
 	"path/filepath"
 	"strings"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func init() {

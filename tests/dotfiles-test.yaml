@@ -2,7 +2,7 @@ resources:
   - type: git
     name: dotfiles-repo
     params:
-      repo: "https://github.com/melih-ucgun/veto.git"
+      repo: "https://github.com/r0madeus/veto.git"
       dest: "/tmp/dotfiles-test"
       update: true
 

@@ -3,7 +3,7 @@ package shell
 import (
 	"fmt"
 
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 )
 
 func init() {

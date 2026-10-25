@@ -34,7 +34,7 @@ resources:
     name: clone-self
     depends_on: ["shell:setup-workspace"]
     params:
-      repo: "https://github.com/melih-ucgun/veto.git"
+      repo: "https://github.com/r0madeus/veto.git"
       dest: "{{ .Variables.test_root }}/veto-repo"
       depth: 1
 

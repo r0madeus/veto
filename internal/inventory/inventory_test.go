@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/melih-ucgun/veto/internal/crypto"
+	"github.com/r0madeus/veto/internal/crypto"
 )
 
 func TestLoadInventory_Defaults(t *testing.T) {

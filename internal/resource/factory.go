@@ -1,20 +1,20 @@
 package resource
 
 import (
-	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/r0madeus/veto/internal/core"
 
 	// Register all adapters
-	_ "github.com/melih-ucgun/veto/internal/adapters/bundle"
-	_ "github.com/melih-ucgun/veto/internal/adapters/dconf"
-	_ "github.com/melih-ucgun/veto/internal/adapters/docker"
-	_ "github.com/melih-ucgun/veto/internal/adapters/file"
-	_ "github.com/melih-ucgun/veto/internal/adapters/font"
-	_ "github.com/melih-ucgun/veto/internal/adapters/git"
-	_ "github.com/melih-ucgun/veto/internal/adapters/icon"
-	_ "github.com/melih-ucgun/veto/internal/adapters/identity"
-	_ "github.com/melih-ucgun/veto/internal/adapters/pkg"
-	_ "github.com/melih-ucgun/veto/internal/adapters/service"
-	_ "github.com/melih-ucgun/veto/internal/adapters/shell"
+	_ "github.com/r0madeus/veto/internal/adapters/bundle"
+	_ "github.com/r0madeus/veto/internal/adapters/dconf"
+	_ "github.com/r0madeus/veto/internal/adapters/docker"
+	_ "github.com/r0madeus/veto/internal/adapters/file"
+	_ "github.com/r0madeus/veto/internal/adapters/font"
+	_ "github.com/r0madeus/veto/internal/adapters/git"
+	_ "github.com/r0madeus/veto/internal/adapters/icon"
+	_ "github.com/r0madeus/veto/internal/adapters/identity"
+	_ "github.com/r0madeus/veto/internal/adapters/pkg"
+	_ "github.com/r0madeus/veto/internal/adapters/service"
+	_ "github.com/r0madeus/veto/internal/adapters/shell"
 )
 
 // CreateResourceWithParams uses the central registry to instantiate resources.

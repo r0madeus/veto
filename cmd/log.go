@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/consts"
-	"github.com/melih-ucgun/veto/internal/core"
-	"github.com/melih-ucgun/veto/internal/state"
-	"github.com/melih-ucgun/veto/internal/types"
 	"github.com/pterm/pterm"
+	"github.com/r0madeus/veto/internal/consts"
+	"github.com/r0madeus/veto/internal/core"
+	"github.com/r0madeus/veto/internal/state"
+	"github.com/r0madeus/veto/internal/types"
 	"github.com/spf13/cobra"
 )
 
