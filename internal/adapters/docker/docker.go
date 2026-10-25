@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 	"time"
 
@@ -23,7 +24,7 @@ func (r *DockerRuntime) Name() string {
 }
 
 func (r *DockerRuntime) runCmd(ctx context.Context, args ...string) (string, error) {
-	cmdStr := "docker " + strings.Join(args, " ")
+	cmdStr := "docker " + utils.ShellJoin(args...)
 	return r.ctx.Transport.Execute(ctx, cmdStr)
 }
 

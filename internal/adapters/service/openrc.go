@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -25,7 +26,7 @@ func (s *OpenRCManager) IsEnabled(ctx *core.SystemContext, service string) (bool
 }
 
 func (s *OpenRCManager) IsActive(ctx *core.SystemContext, service string) (bool, error) {
-	_, err := ctx.Transport.Execute(ctx.Context, "rc-service "+service+" status")
+	_, err := ctx.Transport.Execute(ctx.Context, "rc-service "+utils.ShellQuote(service)+" status")
 	// rc-service returns 0 if started, non-zero if stopped
 	return err == nil, nil
 }
@@ -55,7 +56,7 @@ func (s *OpenRCManager) Reload(ctx *core.SystemContext, service string) error {
 }
 
 func (s *OpenRCManager) runService(ctx *core.SystemContext, service string, action string) error {
-	fullCmd := "rc-service " + service + " " + action
+	fullCmd := "rc-service " + utils.ShellQuote(service) + " " + utils.ShellQuote(action)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("rc-service %s %s failed: %s: %w", service, action, out, err)
 	}
@@ -63,7 +64,7 @@ func (s *OpenRCManager) runService(ctx *core.SystemContext, service string, acti
 }
 
 func (s *OpenRCManager) runUpdate(ctx *core.SystemContext, action, service, runlevel string) error {
-	fullCmd := "rc-update " + action + " " + service + " " + runlevel
+	fullCmd := "rc-update " + utils.ShellQuote(action) + " " + utils.ShellQuote(service) + " " + utils.ShellQuote(runlevel)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("rc-update %s %s %s failed: %s: %w", action, service, runlevel, out, err)
 	}

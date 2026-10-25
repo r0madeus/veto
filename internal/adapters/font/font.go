@@ -101,11 +101,11 @@ func (a *FontAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	tmpExtract := fmt.Sprintf("/tmp/veto_extract_%s", a.Name)
 
 	cmds := []string{
-		fmt.Sprintf("mkdir -p %s", tmpExtract),
-		fmt.Sprintf("unzip -o %s -d %s", tmpRemote, tmpExtract),
-		fmt.Sprintf("mkdir -p %s", dest),
-		fmt.Sprintf("cp -r %s/* %s/", tmpExtract, dest),
-		fmt.Sprintf("rm -rf %s %s", tmpExtract, tmpRemote),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(tmpExtract)),
+		fmt.Sprintf("unzip -o %s -d %s", utils.ShellQuote(tmpRemote), utils.ShellQuote(tmpExtract)),
+		fmt.Sprintf("mkdir -p %s", utils.ShellQuote(dest)),
+		fmt.Sprintf("cp -r %s/* %s/", utils.ShellQuote(tmpExtract), utils.ShellQuote(dest)),
+		fmt.Sprintf("rm -rf %s %s", utils.ShellQuote(tmpExtract), utils.ShellQuote(tmpRemote)),
 	}
 
 	// If system install, we might need sudo.

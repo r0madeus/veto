@@ -1,9 +1,12 @@
 package git
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/melih-ucgun/veto/internal/core"
 )
@@ -103,4 +106,17 @@ func TestGitAdapter_Apply_Clone(t *testing.T) {
 	if !mockTransport.AssertCalled("clone") {
 		t.Fatal("Git clone was not called")
 	}
+}
+
+func TestGitHelpers_QuoteArguments(t *testing.T) {
+	mock := core.NewMockTransport()
+	ctx := &core.SystemContext{Transport: mock, Context: context.Background()}
+
+	_, _ = getRemoteURL(ctx, "/tmp/my repo", "origin; id")
+	_, _ = getRefSHA(ctx, "/tmp/repo", "$(touch /tmp/pwned)")
+	_ = checkout(ctx, "/tmp/repo", "main && id")
+
+	assert.Equal(t, "git -C '/tmp/my repo' remote get-url 'origin; id'", mock.Calls[0])
+	assert.Equal(t, "git -C /tmp/repo rev-parse '$(touch /tmp/pwned)'", mock.Calls[1])
+	assert.Equal(t, "git -C /tmp/repo checkout 'main && id'", mock.Calls[2])
 }

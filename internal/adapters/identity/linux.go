@@ -2,6 +2,7 @@ package identity
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strconv"
 	"strings"
 
@@ -12,7 +13,7 @@ type LinuxIdentityProvider struct{}
 
 func (p *LinuxIdentityProvider) CheckUser(ctx *core.SystemContext, r *UserAdapter) (bool, error) {
 	// getent passwd <user>
-	out, err := ctx.Transport.Execute(ctx.Context, "getent passwd "+r.Name)
+	out, err := ctx.Transport.Execute(ctx.Context, "getent passwd "+utils.ShellQuote(r.Name))
 	exists := (err == nil)
 
 	if r.State == "absent" {
@@ -48,7 +49,7 @@ func (p *LinuxIdentityProvider) CheckUser(ctx *core.SystemContext, r *UserAdapte
 	}
 
 	if len(r.Groups) > 0 {
-		outGroups, err := ctx.Transport.Execute(ctx.Context, "id -Gn "+r.Name)
+		outGroups, err := ctx.Transport.Execute(ctx.Context, "id -Gn "+utils.ShellQuote(r.Name))
 		if err != nil {
 			return false, fmt.Errorf("failed to get user groups: %w", err)
 		}
@@ -82,7 +83,7 @@ func (p *LinuxIdentityProvider) ApplyUser(ctx *core.SystemContext, r *UserAdapte
 	}
 
 	if r.State == "absent" {
-		fullCmd := "userdel -r " + r.Name
+		fullCmd := "userdel -r " + utils.ShellQuote(r.Name)
 		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return core.Failure(err, "Failed to delete user: "+out), err
 		}
@@ -91,7 +92,7 @@ func (p *LinuxIdentityProvider) ApplyUser(ctx *core.SystemContext, r *UserAdapte
 	}
 
 	exists := false
-	if _, err := ctx.Transport.Execute(ctx.Context, "id -u "+r.Name); err == nil {
+	if _, err := ctx.Transport.Execute(ctx.Context, "id -u "+utils.ShellQuote(r.Name)); err == nil {
 		exists = true
 	}
 
@@ -122,7 +123,7 @@ func (p *LinuxIdentityProvider) ApplyUser(ctx *core.SystemContext, r *UserAdapte
 
 	args = append(args, r.Name)
 
-	fullCmd := cmd + " " + strings.Join(args, " ")
+	fullCmd := cmd + " " + utils.ShellJoin(args...)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return core.Failure(err, fmt.Sprintf("Failed to %s user: %s", cmd, out)), err
 	}
@@ -138,7 +139,7 @@ func (p *LinuxIdentityProvider) ApplyUser(ctx *core.SystemContext, r *UserAdapte
 
 func (p *LinuxIdentityProvider) RevertUser(ctx *core.SystemContext, r *UserAdapter) error {
 	if r.ActionPerformed == "created" {
-		fullCmd := "userdel -r " + r.Name
+		fullCmd := "userdel -r " + utils.ShellQuote(r.Name)
 		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return fmt.Errorf("failed to revert user creation: %s: %w", out, err)
 		}
@@ -147,7 +148,7 @@ func (p *LinuxIdentityProvider) RevertUser(ctx *core.SystemContext, r *UserAdapt
 }
 
 func (p *LinuxIdentityProvider) CheckGroup(ctx *core.SystemContext, r *GroupAdapter) (bool, error) {
-	out, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
+	out, err := ctx.Transport.Execute(ctx.Context, "getent group "+utils.ShellQuote(r.Name))
 	exists := (err == nil)
 
 	if r.State == "absent" {
@@ -185,7 +186,7 @@ func (p *LinuxIdentityProvider) ApplyGroup(ctx *core.SystemContext, r *GroupAdap
 	}
 
 	if r.State == "absent" {
-		fullCmd := "groupdel " + r.Name
+		fullCmd := "groupdel " + utils.ShellQuote(r.Name)
 		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return core.Failure(err, "Failed to delete group: "+out), err
 		}
@@ -194,7 +195,7 @@ func (p *LinuxIdentityProvider) ApplyGroup(ctx *core.SystemContext, r *GroupAdap
 	}
 
 	// Modify?
-	if _, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name); err == nil {
+	if _, err := ctx.Transport.Execute(ctx.Context, "getent group "+utils.ShellQuote(r.Name)); err == nil {
 		args := []string{}
 		if r.Gid != -1 {
 			args = append(args, "-g", strconv.Itoa(r.Gid))
@@ -202,7 +203,7 @@ func (p *LinuxIdentityProvider) ApplyGroup(ctx *core.SystemContext, r *GroupAdap
 		args = append(args, r.Name)
 
 		if len(args) > 1 {
-			fullCmd := "groupmod " + strings.Join(args, " ")
+			fullCmd := "groupmod " + utils.ShellJoin(args...)
 			if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 				return core.Failure(err, "Failed to modify group: "+out), err
 			}
@@ -222,7 +223,7 @@ func (p *LinuxIdentityProvider) ApplyGroup(ctx *core.SystemContext, r *GroupAdap
 	}
 	args = append(args, r.Name)
 
-	fullCmd := "groupadd " + strings.Join(args, " ")
+	fullCmd := "groupadd " + utils.ShellJoin(args...)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return core.Failure(err, "Failed to create group: "+out), err
 	}
@@ -233,7 +234,7 @@ func (p *LinuxIdentityProvider) ApplyGroup(ctx *core.SystemContext, r *GroupAdap
 
 func (p *LinuxIdentityProvider) RevertGroup(ctx *core.SystemContext, r *GroupAdapter) error {
 	if r.ActionPerformed == "created" {
-		fullCmd := "groupdel " + r.Name
+		fullCmd := "groupdel " + utils.ShellQuote(r.Name)
 		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return fmt.Errorf("failed to revert group creation: %s: %w", out, err)
 		}

@@ -2,6 +2,7 @@ package dconf
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -53,7 +54,7 @@ func (a *DconfAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	}
 
 	// 2. Read current value
-	output, err := ctx.Transport.Execute(ctx.Context, fmt.Sprintf("dconf read %s", a.Name))
+	output, err := ctx.Transport.Execute(ctx.Context, fmt.Sprintf("dconf read %s", utils.ShellQuote(a.Name)))
 	if err != nil {
 		// Treat error as unset/failure to read -> return false if we want to set it?
 		// Or return error?
@@ -74,7 +75,7 @@ func (a *DconfAdapter) Check(ctx *core.SystemContext) (bool, error) {
 
 func (a *DconfAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	if a.State == "reset" {
-		cmd := fmt.Sprintf("dconf reset %s", a.Name)
+		cmd := fmt.Sprintf("dconf reset %s", utils.ShellQuote(a.Name))
 		if ctx.DryRun {
 			return core.SuccessChange(fmt.Sprintf("[DryRun] Would run: %s", cmd)), nil
 		}
@@ -86,7 +87,7 @@ func (a *DconfAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 	// State = present
 	val := fmt.Sprintf("%v", a.Params["value"])
-	cmd := fmt.Sprintf("dconf write %s %s", a.Name, val)
+	cmd := fmt.Sprintf("dconf write %s %s", utils.ShellQuote(a.Name), utils.ShellQuote(val))
 
 	if ctx.DryRun {
 		return core.SuccessChange(fmt.Sprintf("[DryRun] Would run: %s", cmd)), nil

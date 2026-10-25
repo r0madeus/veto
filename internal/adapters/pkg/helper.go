@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -56,7 +57,7 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 func isInstalled(ctx *core.SystemContext, checkCmd string, args ...string) bool {
 	fullCmd := checkCmd
 	if len(args) > 0 {
-		fullCmd += " " + strings.Join(args, " ")
+		fullCmd += " " + utils.ShellJoin(args...)
 	}
 
 	_, err := ctx.Transport.Execute(ctx.Context, fullCmd)
@@ -67,7 +68,7 @@ func isInstalled(ctx *core.SystemContext, checkCmd string, args ...string) bool 
 func runCommand(ctx *core.SystemContext, name string, args ...string) (string, error) {
 	fullCmd := name
 	if len(args) > 0 {
-		fullCmd += " " + strings.Join(args, " ")
+		fullCmd += " " + utils.ShellJoin(args...)
 	}
 	return ctx.Transport.Execute(ctx.Context, fullCmd)
 }

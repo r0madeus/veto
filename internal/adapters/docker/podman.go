@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 	"time"
 
@@ -23,7 +24,7 @@ func (r *PodmanRuntime) Name() string {
 }
 
 func (r *PodmanRuntime) runCmd(ctx context.Context, args ...string) (string, error) {
-	cmdStr := "podman " + strings.Join(args, " ")
+	cmdStr := "podman " + utils.ShellJoin(args...)
 	return r.ctx.Transport.Execute(ctx, cmdStr)
 }
 

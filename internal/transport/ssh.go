@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -38,6 +39,12 @@ func hostKeyCallback(host HostConfig) (ssh.HostKeyCallback, error) {
 		return nil, fmt.Errorf("cannot load known_hosts (%s): %w; add the host with 'ssh-keyscan -p %d %s >> %s' or set insecure_host_key: true for this host", path, err, host.Port, host.Address, path)
 	}
 	return cb, nil
+}
+
+// sudoWrap runs the whole command line (including pipes and && chains) under
+// sudo, reading the password from stdin without a prompt.
+func sudoWrap(cmd string) string {
+	return "sudo -S -p '' sh -c " + utils.ShellQuote(cmd)
 }
 
 type HostConfig struct {
@@ -168,7 +175,7 @@ func (t *SSHTransport) runRemoteSecureCaptured(ctx context.Context, cmdStr strin
 	}
 	defer session.Close()
 
-	finalCmd := fmt.Sprintf("sudo -S -p '' %s", cmdStr)
+	finalCmd := sudoWrap(cmdStr)
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
@@ -211,7 +218,7 @@ func (t *SSHTransport) RunRemoteSecure(ctx context.Context, cmdStr string, sudoP
 	if t.config.BecomeMethod == "sudo" && sudoPassword != "" {
 		// -S: Stdin'den şifre oku
 		// -p '': Prompt gösterme
-		finalCmd = fmt.Sprintf("sudo -S -p '' %s", cmdStr)
+		finalCmd = sudoWrap(cmdStr)
 	}
 
 	stdin, err := session.StdinPipe()

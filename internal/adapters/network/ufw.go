@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strconv"
 	"strings"
 
@@ -97,7 +98,7 @@ func (p *UFWProvider) ApplyRule(ctx *core.SystemContext, r *FirewallAdapter) (co
 		baseCmd += " delete"
 	}
 
-	baseCmd += " " + r.Action
+	baseCmd += " " + utils.ShellQuote(r.Action)
 
 	// If source is any and dest is any and simple port allow
 	if r.From == "any" && r.To == "any" {
@@ -105,12 +106,12 @@ func (p *UFWProvider) ApplyRule(ctx *core.SystemContext, r *FirewallAdapter) (co
 		if r.Proto != "any" {
 			portSpec += "/" + r.Proto
 		}
-		baseCmd += " " + portSpec
+		baseCmd += " " + utils.ShellQuote(portSpec)
 	} else {
 		// Complex syntax
-		baseCmd += " from " + r.From + " to " + r.To + " port " + strconv.Itoa(r.Port)
+		baseCmd += " from " + utils.ShellQuote(r.From) + " to " + utils.ShellQuote(r.To) + " port " + strconv.Itoa(r.Port)
 		if r.Proto != "any" {
-			baseCmd += " proto " + r.Proto
+			baseCmd += " proto " + utils.ShellQuote(r.Proto)
 		}
 	}
 
@@ -138,7 +139,7 @@ func (p *UFWProvider) RevertRule(ctx *core.SystemContext, r *FirewallAdapter) er
 		// But Apply checks adapter state.
 
 		// Just run delete command best effort.
-		cmd := fmt.Sprintf("ufw delete %s %d", r.Action, r.Port) // Simplified revert
+		cmd := fmt.Sprintf("ufw delete %s %d", utils.ShellQuote(r.Action), r.Port) // Simplified revert
 		if r.Proto != "any" {
 			cmd += "/" + r.Proto
 		}

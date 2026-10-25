@@ -96,3 +96,11 @@ func TestAuthMethods_Password(t *testing.T) {
 		t.Fatalf("expected one password method, got %d, err %v", len(m), err)
 	}
 }
+
+func TestSudoWrap_CoversWholeCommandLine(t *testing.T) {
+	got := sudoWrap("mkdir -p /a && cp x /a/")
+	want := "sudo -S -p '' sh -c 'mkdir -p /a && cp x /a/'"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}

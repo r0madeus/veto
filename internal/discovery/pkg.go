@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -68,7 +69,7 @@ func discoverPackages(ctx *core.SystemContext) ([]string, error) {
 }
 
 func discoverGeneric(ctx *core.SystemContext, cmd string, args ...string) ([]string, error) {
-	fullCmd := cmd + " " + strings.Join(args, " ")
+	fullCmd := cmd + " " + utils.ShellJoin(args...)
 	output, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return nil, err

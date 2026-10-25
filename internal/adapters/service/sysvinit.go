@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/melih-ucgun/veto/internal/utils"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -27,17 +28,17 @@ func (s *SysVinitManager) Name() string {
 
 func (s *SysVinitManager) IsEnabled(ctx *core.SystemContext, service string) (bool, error) {
 	if s.enableCmd == "chkconfig" {
-		out, _ := ctx.Transport.Execute(ctx.Context, "chkconfig --list "+service)
+		out, _ := ctx.Transport.Execute(ctx.Context, "chkconfig --list "+utils.ShellQuote(service))
 		return strings.Contains(string(out), ":on"), nil
 	}
 	// update-rc.d doesn't easily show status, assuming false or skipping
 	// ls /etc/rc3.d/S*service
-	_, err := ctx.Transport.Execute(ctx.Context, fmt.Sprintf("ls /etc/rc*.d/S*%s 2>/dev/null", service))
+	_, err := ctx.Transport.Execute(ctx.Context, fmt.Sprintf("ls /etc/rc*.d/S*%s 2>/dev/null", utils.ShellQuote(service)))
 	return err == nil, nil
 }
 
 func (s *SysVinitManager) IsActive(ctx *core.SystemContext, service string) (bool, error) {
-	_, err := ctx.Transport.Execute(ctx.Context, "service "+service+" status")
+	_, err := ctx.Transport.Execute(ctx.Context, "service "+utils.ShellQuote(service)+" status")
 	return err == nil, nil
 }
 
@@ -76,7 +77,7 @@ func (s *SysVinitManager) Reload(ctx *core.SystemContext, service string) error 
 }
 
 func (s *SysVinitManager) runService(ctx *core.SystemContext, service string, action string) error {
-	fullCmd := "service " + service + " " + action
+	fullCmd := "service " + utils.ShellQuote(service) + " " + utils.ShellQuote(action)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("service %s %s failed: %s: %w", service, action, out, err)
 	}
@@ -84,7 +85,7 @@ func (s *SysVinitManager) runService(ctx *core.SystemContext, service string, ac
 }
 
 func (s *SysVinitManager) run(ctx *core.SystemContext, cmdName string, args ...string) error {
-	fullCmd := cmdName + " " + strings.Join(args, " ")
+	fullCmd := cmdName + " " + utils.ShellJoin(args...)
 	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("%s %s failed: %s: %w", cmdName, strings.Join(args, " "), out, err)
 	}
