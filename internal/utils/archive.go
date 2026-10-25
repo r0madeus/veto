@@ -7,7 +7,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+// safeJoin joins name onto destDir and rejects results that escape destDir (Zip Slip).
+func safeJoin(destDir, name string) (string, error) {
+	target := filepath.Join(destDir, name)
+	rel, err := filepath.Rel(destDir, target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("illegal file path in archive: %s", name)
+	}
+	return target, nil
+}
 
 // ExtractTarGz extracts a tar.gz stream to the destination directory.
 func ExtractTarGz(gzipStream io.Reader, destDir string) error {
@@ -28,7 +39,10 @@ func ExtractTarGz(gzipStream io.Reader, destDir string) error {
 			return fmt.Errorf("ExtractTarGz: Next() failed: %w", err)
 		}
 
-		targetPath := filepath.Join(destDir, header.Name)
+		targetPath, err := safeJoin(destDir, header.Name)
+		if err != nil {
+			return fmt.Errorf("ExtractTarGz: %w", err)
+		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
