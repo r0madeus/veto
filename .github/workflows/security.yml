@@ -6,8 +6,9 @@ on:
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch: # manual run
-  schedule:
-    - cron: '0 0 * * 1' # Her Pazartesi çalışır
+  # No schedule: GitHub disables scheduled workflows after 60 days without repo
+  # activity (this one was disabled that way). Dependabot security updates
+  # cover new advisories between pushes.
 
 jobs:
   govulncheck:
