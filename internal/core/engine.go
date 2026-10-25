@@ -14,7 +14,6 @@ import (
 )
 
 // StateUpdater interface allows Engine to be independent of the state package.
-// StateUpdater interface allows Engine to be independent of the state package.
 type StateUpdater interface {
 	UpdateResource(resType, name, targetState, status string) error
 	AddTransaction(tx types.Transaction) error
