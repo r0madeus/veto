@@ -421,3 +421,31 @@ func TestEngine_RunLayers_ReportsEachLayer(t *testing.T) {
 		t.Error("layer 0 must be rolled back and layer 2 never applied")
 	}
 }
+
+// revertOnly has Revert but not RevertAction, like the user, group, service and git adapters.
+type revertOnly struct {
+	MockResource
+	reverted bool
+}
+
+func (r *revertOnly) Revert(ctx *core.SystemContext) error { r.reverted = true; return nil }
+
+func TestEngine_Rollback_RevertsResourcesWithoutRevertAction(t *testing.T) {
+	engine := core.NewEngine(core.NewSystemContext(false, nil), nil)
+
+	u := &revertOnly{MockResource: MockResource{Name: "user", ApplyResult: core.SuccessChange("created")}}
+	bad := &MockResource{Name: "bad", ApplyErr: errors.New("boom")}
+	create := func(typ, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
+		if n == "user" {
+			return u, nil
+		}
+		return bad, nil
+	}
+
+	if err := engine.RunParallel([]core.ConfigItem{{Name: "user"}, {Name: "bad"}}, create); err == nil {
+		t.Fatal("expected error")
+	}
+	if !u.reverted {
+		t.Error("a resource that only implements Revert must still be rolled back")
+	}
+}

@@ -488,7 +488,7 @@ func (e *Engine) rollback(resources []Resource) {
 	// Go in reverse order
 	for i := len(resources) - 1; i >= 0; i-- {
 		res := resources[i]
-		if rev, ok := res.(Revertable); ok {
+		if rev, ok := res.(Reverter); ok {
 			pterm.Warning.Printf("Visualizing Rollback for %s...\n", res.GetName())
 			if err := rev.Revert(e.Context); err != nil {
 				pterm.Error.Printf("Failed to revert %s: %v\n", res.GetName(), err)
