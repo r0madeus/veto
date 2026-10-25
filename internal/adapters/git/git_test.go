@@ -84,7 +84,7 @@ func TestGitAdapter_Apply_Clone(t *testing.T) {
 	repoPath := filepath.Join(tmpDir, "new-repo")
 
 	// Mock Clone
-	expectedCmd := "git clone https://github.com/example/repo " + repoPath + " -b main"
+	expectedCmd := "git clone -b main -- https://github.com/example/repo " + repoPath
 	mockTransport.OnExecute(expectedCmd, "", nil)
 
 	params := map[string]interface{}{
@@ -119,4 +119,21 @@ func TestGitHelpers_QuoteArguments(t *testing.T) {
 	assert.Equal(t, "git -C '/tmp/my repo' remote get-url 'origin; id'", mock.Calls[0])
 	assert.Equal(t, "git -C /tmp/repo rev-parse '$(touch /tmp/pwned)'", mock.Calls[1])
 	assert.Equal(t, "git -C /tmp/repo checkout 'main && id'", mock.Calls[2])
+}
+
+func TestGitAdapter_Validate_RejectsOptionLikeValues(t *testing.T) {
+	ctx := &core.SystemContext{}
+	for _, params := range []map[string]interface{}{
+		{"repo": "--upload-pack=evil", "dest": "/tmp/x"},
+		{"repo": "https://example.com/r.git", "dest": "/tmp/x", "branch": "-b"},
+		{"repo": "https://example.com/r.git", "dest": "/tmp/x", "remote": "--force"},
+	} {
+		if err := NewGitAdapter("g", params).Validate(ctx); err == nil {
+			t.Errorf("expected validation error for %v", params)
+		}
+	}
+	ok := NewGitAdapter("g", map[string]interface{}{"repo": "https://example.com/r.git", "dest": "/tmp/x"})
+	if err := ok.Validate(ctx); err != nil {
+		t.Errorf("valid params rejected: %v", err)
+	}
 }

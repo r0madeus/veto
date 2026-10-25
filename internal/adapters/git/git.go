@@ -80,6 +80,12 @@ func (r *GitAdapter) Validate(ctx *core.SystemContext) error {
 	if !utils.IsOneOf(r.State, "present", "absent") {
 		return fmt.Errorf("invalid state '%s': must be one of [present, absent]", r.State)
 	}
+	// A leading '-' would be parsed by git as an option, not a value.
+	for field, v := range map[string]string{"repo": r.Repo, "remote": r.Remote, "branch": r.Branch, "tag": r.Tag, "commit": r.Commit} {
+		if strings.HasPrefix(v, "-") {
+			return fmt.Errorf("invalid %s '%s': must not start with '-'", field, v)
+		}
+	}
 	return nil
 }
 
@@ -191,10 +197,11 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Klasör yoksa Clone
 	if _, err := ctx.FS.Stat(filepath.Join(r.Dest, ".git")); os.IsNotExist(err) {
 		// Clone argümanları
-		args := []string{"clone", r.Repo, r.Dest}
+		args := []string{"clone"}
 		if r.Branch != "" {
 			args = append(args, "-b", r.Branch)
 		}
+		args = append(args, "--", r.Repo, r.Dest)
 
 		fullCmd := "git " + utils.ShellJoin(args...)
 		out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
