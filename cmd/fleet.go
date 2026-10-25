@@ -34,7 +34,7 @@ var factsCmd = &cobra.Command{
 			invFile = "inventory.yaml"
 		}
 
-		inv, err := inventory.LoadInventory(invFile)
+		inv, err := loadInventory(invFile)
 		if err != nil {
 			atomic.Error.Printf("Failed to load inventory: %v\n", err)
 			return
@@ -186,7 +186,7 @@ var execCmd = &cobra.Command{
 			invFile = "inventory.yaml"
 		}
 
-		inv, err := inventory.LoadInventory(invFile)
+		inv, err := loadInventory(invFile)
 		if err != nil {
 			atomic.Error.Printf("Failed to load inventory: %v\n", err)
 			return
@@ -243,4 +243,23 @@ func init() {
 	fleetCmd.PersistentFlags().StringP("inventory", "i", "inventory.yaml", "Path to inventory file")
 	execCmd.Flags().IntP("concurrency", "C", 10, "Number of concurrent hosts")
 	execCmd.Flags().Bool("sudo", false, "Run with sudo privileges")
+}
+
+// loadInventory loads the inventory and, unless --decrypt=false, decrypts
+// ENC[...] host vars (e.g. ansible_ssh_pass) with the master key.
+func loadInventory(path string) (*inventory.Inventory, error) {
+	inv, err := inventory.LoadInventory(path)
+	if err != nil {
+		return nil, err
+	}
+	if decrypt, _ := rootCmd.PersistentFlags().GetBool("decrypt"); decrypt && inv.HasEncryptedVars() {
+		key := getMasterKey()
+		if key == "" {
+			return nil, fmt.Errorf("inventory contains encrypted values but no master key was found")
+		}
+		if err := inv.DecryptVars(key); err != nil {
+			return nil, err
+		}
+	}
+	return inv, nil
 }

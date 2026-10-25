@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/melih-ucgun/veto/internal/crypto"
 )
 
 // Inventory represents the structure of the inventory file.
@@ -53,4 +55,34 @@ func LoadInventory(path string) (*Inventory, error) {
 	}
 
 	return &inv, nil
+}
+
+// HasEncryptedVars reports whether any host var holds an ENC[...] secret.
+func (inv *Inventory) HasEncryptedVars() bool {
+	for _, h := range inv.Hosts {
+		for _, v := range h.Vars {
+			if crypto.IsEncrypted(v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// DecryptVars decrypts every ENC[...] host var in place. It fails instead of
+// leaving ciphertext behind, which would otherwise be sent as a password.
+func (inv *Inventory) DecryptVars(key string) error {
+	for i := range inv.Hosts {
+		for k, v := range inv.Hosts[i].Vars {
+			if !crypto.IsEncrypted(v) {
+				continue
+			}
+			plain, err := crypto.Decrypt(v, key)
+			if err != nil {
+				return fmt.Errorf("host %s: cannot decrypt var %q: %w", inv.Hosts[i].Name, k, err)
+			}
+			inv.Hosts[i].Vars[k] = plain
+		}
+	}
+	return nil
 }

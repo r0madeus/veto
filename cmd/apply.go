@@ -15,7 +15,6 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/fleet" // New import
 	"github.com/melih-ucgun/veto/internal/hub"
-	"github.com/melih-ucgun/veto/internal/inventory" // New import
 	"github.com/melih-ucgun/veto/internal/resource"
 	"github.com/melih-ucgun/veto/internal/state"
 	"github.com/melih-ucgun/veto/internal/system"
@@ -232,7 +231,7 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 			WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
 			Println("FLEET MODE ACTIVATED")
 
-		inv, err := inventory.LoadInventory(invFile)
+		inv, err := loadInventory(invFile)
 		if err != nil {
 			return fmt.Errorf("failed to load inventory: %w", err)
 		}
